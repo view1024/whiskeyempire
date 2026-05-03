@@ -1,0 +1,1651 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Whisky Empire</title>
+<!--
+  LINEミニアプリ（LIFF）対応 単一HTMLファイル
+
+  デプロイ手順:
+    1. LINE Developers Console で LIFF アプリを作成し、LIFF ID を取得
+       (https://developers.line.biz/console/)
+    2. このファイル下部 <script id="liff-config"> 内の LIFF_ID を書き換え
+       例: const LIFF_ID = '1234567890-abcdefgh';
+    3. HTTPS の任意のホスティングに配置（GitHub Pages, Netlify, Vercel 等）
+    4. LIFF アプリのエンドポイントURLを上記URLに設定
+    5. Scope: profile が必要（ユーザーIDを取得するため）
+
+  保存設計:
+    - localStorage キー: 'we_v4:<userId>'
+    - LIFFログイン済 → userId を含む個別キー（端末を変えてもLINE同一なら復元可と思いきや
+      localStorageは端末ローカルのため端末切替時は別ストレージ。本実装はインポート/エクスポートで対応）
+    - LIFFログイン未/SDK未ロード → 'we_v4:guest' キーで動作（開発・デバッグ用）
+
+  リセット機能:
+    - 現ユーザーのキーのみ削除し location.reload() で再初期化
+-->
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js" async defer></script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Crimson+Text:ital,wght@0,400;1,400&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0d0a07;--bg2:#15110c;--bg3:#1e1710;--panel:#241c13;--border:#3a2e1e;
+  --gold:#c8972a;--gold2:#e8b94a;--amber:#d4691e;--cream:#f0e6c8;--muted:#7a6a50;
+  --green:#4a9a6a;--red:#c04040;--text:#e8dcc8;--text2:#b0a080;
+  --line:#06c755;
+  --fd:'Playfair Display',serif;--fb:'Crimson Text',serif;--fm:'JetBrains Mono',monospace;
+  --sb:env(safe-area-inset-bottom,0px)
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{background:var(--bg);color:var(--text);font-family:var(--fb);height:100%;overflow:hidden;user-select:none}
+#app{display:flex;flex-direction:column;height:100dvh;max-width:480px;margin:0 auto}
+#hdr{flex-shrink:0;background:linear-gradient(180deg,#1a1208,var(--bg2));border-bottom:1px solid var(--border);padding:10px 16px 8px;display:flex;align-items:center;gap:12px}
+.logo{font-family:var(--fd);font-size:20px;font-weight:900;color:var(--gold2);letter-spacing:.04em;text-shadow:0 0 20px rgba(200,150,42,.4)}
+.logo span{color:var(--amber)}
+.cash-box{margin-left:auto;text-align:right}
+.cash-lbl{font-size:10px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;font-family:var(--fm)}
+.cash-val{font-family:var(--fm);font-size:18px;font-weight:600;color:var(--gold2);line-height:1.2}
+#content{flex:1;position:relative;overflow:hidden}
+#nav{flex-shrink:0;display:flex;background:var(--bg2);border-top:1px solid var(--border);padding-bottom:var(--sb);z-index:10}
+.nb{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 4px;background:none;border:none;cursor:pointer;color:var(--muted);font-family:var(--fb);font-size:10px;letter-spacing:.04em;transition:color .2s;position:relative;-webkit-user-select:none;user-select:none}
+.nb .ic{font-size:22px;line-height:1;pointer-events:none}
+.nb span{pointer-events:none}
+.nb.on{color:var(--gold2)}
+.nb.on::before{content:'';position:absolute;top:0;left:20%;right:20%;height:2px;background:var(--gold2);border-radius:0 0 2px 2px}
+/* タブはデフォルト display:none。.on が付いた時のみ各タブの display を適用 */
+.tab{position:absolute;inset:0;display:none;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
+/* DISTILL（スクロール不要：全要素を画面内に収める） */
+#td.on{display:flex;flex-direction:column;height:100%;padding:8px 12px 10px;gap:6px;overflow:hidden}
+.sr{display:grid;grid-template-columns:1fr 1fr;gap:5px;width:100%;flex-shrink:0}
+.sc{background:var(--panel);border:1px solid var(--border);border-radius:7px;padding:6px 9px}
+.sc .sl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-family:var(--fm)}
+.sc .sv{font-family:var(--fm);font-size:13px;color:var(--gold2);font-weight:600;margin-top:1px}
+.barrel-section{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:0;gap:6px}
+.barrel-area{width:min(70vw,250px);aspect-ratio:1;max-height:100%;cursor:pointer;flex-shrink:1;touch-action:manipulation;position:relative}
+.barrel-area:active svg{transform:scale(.95)}
+.barrel-area svg{transition:transform .08s;filter:drop-shadow(0 10px 24px rgba(0,0,0,.6));width:100%;height:100%;display:block}
+.cl{font-family:var(--fb);font-size:12px;color:var(--muted);letter-spacing:.04em;text-align:center;flex-shrink:0}
+.cl span{color:var(--gold);font-family:var(--fm);font-weight:600;font-size:14px}
+.ft{position:fixed;font-family:var(--fm);font-size:18px;font-weight:600;color:var(--gold2);pointer-events:none;z-index:999;text-shadow:0 2px 8px rgba(0,0,0,.8);opacity:0}
+.ft.run{animation:fu 1s ease-out forwards}
+@keyframes fu{0%{opacity:1;transform:translateY(0) scale(1)}60%{opacity:1;transform:translateY(-48px) scale(1.1)}100%{opacity:0;transform:translateY(-80px) scale(.8)}}
+.pb{background:linear-gradient(135deg,var(--panel),var(--bg3));border:1px solid var(--border);border-radius:7px;padding:6px 12px;width:100%;text-align:center;flex-shrink:0}
+.pb .dn{font-family:var(--fd);font-size:14px;color:var(--gold2);font-weight:700;line-height:1.2}
+.pb .dl{font-size:10px;color:var(--muted);font-family:var(--fm);margin-top:1px}
+.dist-upgrade{width:100%;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-shrink:0}
+.dist-upgrade .du-info{min-width:0;flex:1}
+.dist-upgrade .du-name{font-family:var(--fd);font-size:12px;color:var(--cream);font-weight:700;line-height:1.2}
+.dist-upgrade .du-next{font-family:var(--fm);font-size:10px;color:var(--muted);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* BUSINESS */
+#tb.on{padding:12px;display:flex;flex-direction:column;gap:8px}
+.sec{font-family:var(--fd);font-size:12px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;padding:4px 4px 8px;border-bottom:1px solid var(--border);margin-bottom:4px}
+.fc{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px;display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.fc.lk{opacity:.4;filter:grayscale(.5)}
+.fc .fi{font-size:28px;flex-shrink:0}
+.fc .fn{font-family:var(--fd);font-size:14px;color:var(--cream);font-weight:700}
+.fc .fs{font-family:var(--fm);font-size:11px;color:var(--muted);margin-top:3px}
+.fc .fic{font-family:var(--fm);font-size:12px;color:var(--green);margin-top:2px}
+.fr{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0}
+.lv{font-family:var(--fm);font-size:10px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 6px;color:var(--gold)}
+.ub{background:linear-gradient(135deg,var(--amber),var(--gold));border:none;border-radius:6px;padding:6px 10px;font-family:var(--fm);font-size:11px;font-weight:600;color:#1a1208;cursor:pointer;white-space:nowrap;transition:filter .15s,transform .1s;min-width:68px;text-align:center}
+.ub:active{transform:scale(.95)}
+.ub.ca{background:var(--bg3);color:var(--muted);border:1px solid var(--border)}
+.ub.mx{background:var(--bg3);color:var(--green);border:1px solid var(--green)}
+/* ENCYCLOPEDIA */
+#te.on{padding:12px;display:block}
+.epb{background:var(--bg3);border-radius:4px;height:6px;overflow:hidden;margin:8px 0 12px}
+.epb .fill{height:100%;background:linear-gradient(90deg,var(--amber),var(--gold2));border-radius:4px;transition:width .5s}
+.wg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.wc{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px;cursor:pointer;transition:border-color .2s,transform .1s;position:relative;overflow:hidden}
+.wc:active{transform:scale(.95)}
+.wc.ul{border-color:var(--gold)}
+.wc.lk .wn{filter:blur(4px)}
+.wc .wb{font-size:26px;text-align:center;line-height:1.3}
+.wc .wn{font-family:var(--fd);font-size:11px;text-align:center;color:var(--cream);font-weight:700;margin-top:3px;line-height:1.2;word-break:break-word}
+.wc .wr{font-size:9px;text-align:center;color:var(--muted);margin-top:2px;font-family:var(--fm)}
+.wc .ws{text-align:center;font-size:10px;margin-top:2px;color:var(--gold)}
+.wc .wlk{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:22px;background:rgba(13,10,7,.6);border-radius:8px}
+.fb{flex-shrink:0;background:var(--bg3);border:1px solid var(--border);border-radius:16px;padding:5px 12px;font-family:var(--fm);font-size:11px;color:var(--muted);cursor:pointer;white-space:nowrap}
+.fb.on{background:var(--amber);border-color:var(--gold);color:#1a1208;font-weight:600}
+/* MODAL */
+.mo{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:100;display:flex;align-items:flex-end;justify-content:center}
+.mo.h{display:none}
+.mb{background:var(--bg2);border:1px solid var(--border);border-radius:16px 16px 0 0;padding:24px 20px;width:100%;max-width:480px;max-height:85vh;overflow-y:auto;position:relative}
+.mc{position:absolute;top:16px;right:16px;background:var(--bg3);border:1px solid var(--border);border-radius:50%;width:32px;height:32px;cursor:pointer;color:var(--muted);font-size:18px;display:flex;align-items:center;justify-content:center}
+.mt{font-family:var(--fd);font-size:22px;font-weight:900;color:var(--gold2);margin-bottom:4px}
+.ms{font-size:13px;color:var(--muted);font-family:var(--fm);letter-spacing:.06em;margin-bottom:16px}
+.fl{display:flex;flex-direction:column;gap:8px;margin:12px 0}
+.flr{display:flex;align-items:center;gap:8px}
+.fll{font-size:12px;color:var(--text2);width:66px;flex-shrink:0;font-family:var(--fm)}
+.flt{flex:1;height:8px;background:var(--bg3);border-radius:4px;overflow:hidden}
+.flf{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--amber),var(--gold2));transition:width .6s}
+.flv{font-size:11px;color:var(--gold);width:28px;text-align:right;font-family:var(--fm)}
+.msr{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-family:var(--fm)}
+.msl{font-size:12px;color:var(--muted)}
+.msv{font-size:13px;color:var(--cream)}
+.cb{width:100%;margin-top:16px;padding:14px;background:linear-gradient(135deg,var(--amber),var(--gold));border:none;border-radius:10px;font-family:var(--fd);font-size:16px;font-weight:700;color:#1a1208;cursor:pointer;letter-spacing:.06em}
+.cb:active{filter:brightness(.9)}
+.cb:disabled{background:var(--bg3);color:var(--muted);border:1px solid var(--border)}
+/* PROFILE */
+#tp.on{padding:16px;display:flex;flex-direction:column;gap:12px}
+.ph{display:flex;align-items:center;gap:16px;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px}
+.pa{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--amber),var(--gold2));display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;overflow:hidden}
+.pa img{width:100%;height:100%;object-fit:cover}
+.pn{font-family:var(--fd);font-size:18px;font-weight:700;color:var(--cream)}
+.pt{font-size:12px;color:var(--gold);font-family:var(--fm);margin-top:2px}
+.pst{font-size:10px;color:var(--muted);font-family:var(--fm);margin-top:3px;display:flex;align-items:center;gap:4px}
+.pst .dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--muted)}
+.pst.line .dot{background:var(--line)}
+.ag{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ac{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px}
+.ac .al{font-size:11px;color:var(--muted);font-family:var(--fm);letter-spacing:.06em;text-transform:uppercase}
+.ac .av{font-family:var(--fm);font-size:15px;color:var(--gold2);font-weight:600;margin-top:4px}
+.btn-sec{padding:12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text2);font-family:var(--fm);font-size:13px;cursor:pointer;letter-spacing:.06em;width:100%}
+.btn-sec:active{background:var(--bg3)}
+.btn-line{padding:12px;background:var(--line);border:none;border-radius:8px;color:#fff;font-family:var(--fm);font-size:13px;font-weight:600;cursor:pointer;letter-spacing:.06em;width:100%}
+.btn-line:active{filter:brightness(.92)}
+.rst{padding:12px;background:none;border:1px solid var(--red);border-radius:8px;color:var(--red);font-family:var(--fm);font-size:13px;cursor:pointer;letter-spacing:.08em;width:100%}
+.rst:active{background:rgba(192,64,64,.1)}
+/* TOAST */
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(0);background:var(--panel);border:1px solid var(--gold);border-radius:8px;padding:10px 20px;font-family:var(--fm);font-size:13px;color:var(--gold2);z-index:200;opacity:0;transition:opacity .3s,transform .3s;white-space:nowrap;pointer-events:none;text-align:center;max-width:90vw}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(-8px)}
+/* LOADING */
+#ld{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:999;transition:opacity .5s}
+#ld .lt{font-family:var(--fd);font-size:32px;font-weight:900;color:var(--gold2);letter-spacing:.06em;text-shadow:0 0 40px rgba(200,150,42,.6)}
+#ld .lt span{color:var(--amber)}
+#ld .lm{font-family:var(--fm);font-size:11px;color:var(--muted);margin-top:8px}
+.sp{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.confirm{display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:300;align-items:center;justify-content:center;padding:24px}
+.confirm.on{display:flex}
+.confirm-box{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:24px;max-width:340px;width:100%}
+.confirm-box.danger{border-color:var(--red)}
+.confirm-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn-cancel{padding:13px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;color:var(--muted);font-family:var(--fm);font-size:14px;cursor:pointer}
+.btn-confirm{padding:13px;background:var(--red);border:none;border-radius:10px;color:#fff;font-family:var(--fd);font-size:15px;font-weight:700;cursor:pointer}
+.btn-ok{padding:13px;background:linear-gradient(135deg,var(--amber),var(--gold));border:none;border-radius:10px;color:#1a1208;font-family:var(--fd);font-size:15px;font-weight:700;cursor:pointer}
+.banner{background:linear-gradient(135deg,#1a1208,var(--bg2));border:1px solid var(--gold);border-radius:8px;padding:10px 14px;font-family:var(--fm);font-size:11px;color:var(--gold2);margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.banner .b-ic{font-size:18px}
+</style>
+</head>
+<body>
+<div id="ld">
+  <div class="lt">Whisky<span>Empire</span></div>
+  <div class="sp"></div>
+  <div class="lm" id="ldm">起動中…</div>
+</div>
+
+<div id="app" style="display:none">
+  <div id="hdr">
+    <div class="logo">Whisky<span>Empire</span></div>
+    <div class="cash-box"><div class="cash-lbl">残高</div><div class="cash-val" id="hc">$0</div></div>
+  </div>
+  <div id="content">
+    <!-- DISTILL -->
+    <div id="td" class="tab on">
+      <div class="pb"><div class="dn" id="dn">ホームキット</div><div class="dl">Distillery Level <span id="dlv">1</span></div></div>
+      <div class="sr">
+        <div class="sc"><div class="sl">収益/時間</div><div class="sv" id="si">$0</div></div>
+        <div class="sc"><div class="sl">総売上</div><div class="sv" id="st">$0</div></div>
+        <div class="sc"><div class="sl">タップ単価</div><div class="sv" id="sc2">$2</div></div>
+        <div class="sc"><div class="sl">銘柄コンプ</div><div class="sv" id="sec">0/25</div></div>
+      </div>
+      <div class="barrel-section">
+        <div class="barrel-area" id="bb">
+          <svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="staveLight" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stop-color="#2a140a"/>
+                <stop offset="18%" stop-color="#5a2f15"/>
+                <stop offset="38%" stop-color="#8a4828"/>
+                <stop offset="55%" stop-color="#9e5a32"/>
+                <stop offset="75%" stop-color="#6f3a1d"/>
+                <stop offset="100%" stop-color="#1f0d05"/>
+              </linearGradient>
+              <radialGradient id="topRing" cx="38%" cy="40%">
+                <stop offset="0%" stop-color="#a86334"/>
+                <stop offset="55%" stop-color="#5a2f15"/>
+                <stop offset="100%" stop-color="#1a0a04"/>
+              </radialGradient>
+              <linearGradient id="bandGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#5a5a5a"/>
+                <stop offset="35%" stop-color="#1a1a1a"/>
+                <stop offset="55%" stop-color="#0a0a0a"/>
+                <stop offset="75%" stop-color="#2a2a2a"/>
+                <stop offset="100%" stop-color="#1a1a1a"/>
+              </linearGradient>
+              <linearGradient id="bandHL" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#aaa" stop-opacity="0.5"/>
+                <stop offset="100%" stop-color="#000" stop-opacity="0"/>
+              </linearGradient>
+              <linearGradient id="whiskyGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#f4b860"/>
+                <stop offset="40%" stop-color="#d48430"/>
+                <stop offset="100%" stop-color="#7a3010"/>
+              </linearGradient>
+              <linearGradient id="glassGrad" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stop-color="#fff" stop-opacity="0.04"/>
+                <stop offset="20%" stop-color="#fff" stop-opacity="0.18"/>
+                <stop offset="50%" stop-color="#fff" stop-opacity="0.05"/>
+                <stop offset="100%" stop-color="#fff" stop-opacity="0.02"/>
+              </linearGradient>
+              <radialGradient id="bunghole" cx="50%" cy="50%">
+                <stop offset="0%" stop-color="#000"/>
+                <stop offset="60%" stop-color="#1a0a04"/>
+                <stop offset="100%" stop-color="#3a1c0a"/>
+              </radialGradient>
+            </defs>
+            <!-- 床面の影 -->
+            <ellipse cx="100" cy="222" rx="82" ry="8" fill="#000" opacity="0.55"/>
+            <ellipse cx="180" cy="226" rx="32" ry="4" fill="#000" opacity="0.5"/>
+            <!-- 樽本体 - より丸みのある"バルジ"シルエット -->
+            <path d="M 50,52 Q 14,135 50,212 Q 100,228 150,212 Q 186,135 150,52 Z"
+                  fill="url(#staveLight)" stroke="#0a0500" stroke-width="0.8"/>
+            <!-- 縦の板（ステーブ）の継ぎ目 - 丸みに沿った曲線 -->
+            <g stroke="#1a0a04" stroke-width="0.7" fill="none" opacity="0.55">
+              <path d="M 65,53 Q 38,135 65,211"/>
+              <path d="M 80,52 Q 60,135 80,212"/>
+              <path d="M 95,52 Q 92,135 95,212"/>
+              <path d="M 105,52 Q 108,135 105,212"/>
+              <path d="M 120,52 Q 140,135 120,212"/>
+              <path d="M 135,53 Q 162,135 135,211"/>
+            </g>
+            <!-- 木目テクスチャ（横方向の年輪線） -->
+            <g stroke="#3a1c0a" stroke-width="0.4" fill="none" opacity="0.35">
+              <path d="M 30,90 Q 60,93 100,90 Q 140,87 170,90"/>
+              <path d="M 18,135 Q 60,140 100,137 Q 140,134 182,138"/>
+              <path d="M 30,180 Q 60,184 100,181 Q 140,178 170,182"/>
+            </g>
+            <!-- 鉄帯（上） - 樽の丸みに沿わせる -->
+            <path d="M 35,73 Q 32,80 35,87 Q 100,93 165,87 Q 168,80 165,73 Q 100,67 35,73 Z" fill="url(#bandGrad)"/>
+            <ellipse cx="100" cy="80" rx="65" ry="6.5" fill="none" stroke="#aaa" stroke-width="0.3" opacity="0.4"/>
+            <!-- 鉄帯（中央） -->
+            <path d="M 18,128 Q 14,135 18,142 Q 100,148 182,142 Q 186,135 182,128 Q 100,122 18,128 Z" fill="url(#bandGrad)"/>
+            <ellipse cx="100" cy="135" rx="82" ry="7" fill="none" stroke="#aaa" stroke-width="0.3" opacity="0.4"/>
+            <!-- 鉄帯（下） -->
+            <path d="M 35,193 Q 32,200 35,207 Q 100,213 165,207 Q 168,200 165,193 Q 100,187 35,193 Z" fill="url(#bandGrad)"/>
+            <ellipse cx="100" cy="200" rx="65" ry="6.5" fill="none" stroke="#aaa" stroke-width="0.3" opacity="0.4"/>
+            <!-- リベット（鉄帯のボルト） -->
+            <g>
+              <circle cx="55" cy="80" r="1.6" fill="#0a0a0a"/><circle cx="55" cy="79.5" r="0.5" fill="#aaa"/>
+              <circle cx="100" cy="80" r="1.6" fill="#0a0a0a"/><circle cx="100" cy="79.5" r="0.5" fill="#aaa"/>
+              <circle cx="145" cy="80" r="1.6" fill="#0a0a0a"/><circle cx="145" cy="79.5" r="0.5" fill="#aaa"/>
+              <circle cx="32" cy="135" r="1.9" fill="#0a0a0a"/><circle cx="32" cy="134.5" r="0.6" fill="#bbb"/>
+              <circle cx="100" cy="135" r="1.9" fill="#0a0a0a"/><circle cx="100" cy="134.5" r="0.6" fill="#bbb"/>
+              <circle cx="168" cy="135" r="1.9" fill="#0a0a0a"/><circle cx="168" cy="134.5" r="0.6" fill="#bbb"/>
+              <circle cx="55" cy="200" r="1.6" fill="#0a0a0a"/><circle cx="55" cy="199.5" r="0.5" fill="#aaa"/>
+              <circle cx="100" cy="200" r="1.6" fill="#0a0a0a"/><circle cx="100" cy="199.5" r="0.5" fill="#aaa"/>
+              <circle cx="145" cy="200" r="1.6" fill="#0a0a0a"/><circle cx="145" cy="199.5" r="0.5" fill="#aaa"/>
+            </g>
+            <!-- 樽の上面（蓋） -->
+            <ellipse cx="100" cy="52" rx="50" ry="11" fill="url(#topRing)" stroke="#1a0a04" stroke-width="0.8"/>
+            <!-- 年輪 -->
+            <g fill="none" stroke="#2a140a" opacity="0.45">
+              <ellipse cx="100" cy="52" rx="42" ry="8.5"/>
+              <ellipse cx="100" cy="52" rx="32" ry="6.5"/>
+              <ellipse cx="100" cy="52" rx="22" ry="4.5"/>
+              <ellipse cx="100" cy="52" rx="12" ry="2.5"/>
+            </g>
+            <!-- 注ぎ口 -->
+            <ellipse cx="105" cy="50" rx="3" ry="1.5" fill="url(#bunghole)"/>
+            <!-- 樽の左側ハイライト（丸み表現） -->
+            <path d="M 28,90 Q 12,135 28,180" fill="none" stroke="#fff" stroke-width="2.5" opacity="0.04"/>
+            <path d="M 32,95 Q 18,135 32,175" fill="none" stroke="#fff" stroke-width="1.2" opacity="0.06"/>
+            <!-- 焼印 -->
+            <g opacity="0.45">
+              <text x="100" y="115" text-anchor="middle" font-family="serif" font-size="11" font-weight="bold" fill="#2a140a">★ ESTD ★</text>
+              <text x="100" y="128" text-anchor="middle" font-family="serif" font-size="8" fill="#2a140a">CASK No.1</text>
+            </g>
+            <!-- ===== ウィスキーグラス ===== -->
+            <ellipse cx="180" cy="223" rx="28" ry="3" fill="#000" opacity="0.5"/>
+            <!-- グラス本体 -->
+            <path d="M 158,150 L 156,212 Q 156,221 165,221 L 195,221 Q 204,221 204,212 L 202,150 Z" fill="rgba(20,12,6,0.4)" stroke="#3a2a18" stroke-width="0.6"/>
+            <!-- ウィスキー液 -->
+            <path d="M 159,170 L 157,210 Q 157,217 165,217 L 195,217 Q 203,217 203,210 L 201,170 Z" fill="url(#whiskyGrad)"/>
+            <!-- 液面ハイライト -->
+            <ellipse cx="180" cy="170" rx="21" ry="2" fill="#f5cd75" opacity="0.7"/>
+            <ellipse cx="180" cy="170" rx="21" ry="2.2" fill="none" stroke="#5a2510" stroke-width="0.4" opacity="0.6"/>
+            <!-- 氷 -->
+            <g>
+              <path d="M 170,178 L 184,176 L 188,184 L 178,189 Z" fill="#cce8ff" opacity="0.65" stroke="#88aacc" stroke-width="0.4"/>
+              <path d="M 170,178 L 175,182 L 178,189" fill="none" stroke="#fff" stroke-width="0.5" opacity="0.7"/>
+              <path d="M 176,176 L 184,176 L 188,184" fill="none" stroke="#fff" stroke-width="0.4" opacity="0.5"/>
+            </g>
+            <!-- ガラスの反射ハイライト -->
+            <path d="M 162,155 L 161,210 Q 161,216 167,216" fill="none" stroke="#fff" stroke-width="1.5" opacity="0.4"/>
+            <path d="M 199,155 L 200,210" fill="none" stroke="#fff" stroke-width="0.7" opacity="0.22"/>
+            <!-- グラス縁 -->
+            <ellipse cx="180" cy="150" rx="22" ry="3" fill="rgba(255,255,255,0.06)" stroke="#7a5a30" stroke-width="0.7"/>
+            <!-- ガラス表面のシーン -->
+            <path d="M 158,150 L 156,212 Q 156,221 165,221 L 195,221 Q 204,221 204,212 L 202,150 Z" fill="url(#glassGrad)"/>
+          </svg>
+        </div>
+        <div class="cl">タップして<span id="cvl">$2</span>を稼ぐ</div>
+      </div>
+      <div class="dist-upgrade">
+        <div class="du-info">
+          <div class="du-name">蒸留所アップグレード</div>
+          <div class="du-next" id="dni">次: クラフト蒸留所</div>
+        </div>
+        <button class="ub" id="dub">$200K</button>
+      </div>
+    </div>
+    <!-- BUSINESS -->
+    <div id="tb" class="tab">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 4px 0">
+        <div style="font-family:var(--fd);font-size:18px;font-weight:900;color:var(--gold2)">事業管理</div>
+        <div style="font-family:var(--fm);font-size:11px;color:var(--green)" id="til">収益: $0/h</div>
+      </div>
+      <div style="font-family:var(--fm);font-size:11px;color:var(--muted);padding:2px 4px 8px">施設をアップグレードして受動収益を増やそう</div>
+      <div class="sec">⭐ 名声アップグレード（タップ強化）</div>
+      <div class="fc">
+        <div class="fi">⭐</div>
+        <div style="flex:1">
+          <div class="fn">ツアー名声</div>
+          <div class="fs" id="cli">Lv 0 → $2/tap</div>
+          <div class="fic" id="cni">次: $3/tap</div>
+        </div>
+        <div class="fr">
+          <div class="lv" id="clb">Lv 0</div>
+          <button class="ub" id="cub">$50</button>
+        </div>
+      </div>
+      <div class="sec">🏭 製造施設</div>
+      <div id="fl"></div>
+    </div>
+    <!-- ENCYCLOPEDIA -->
+    <div id="te" class="tab">
+      <div style="font-family:var(--fd);font-size:18px;font-weight:900;color:var(--gold2)">ウィスキー図鑑</div>
+      <div style="font-family:var(--fm);font-size:11px;color:var(--muted);margin-top:4px" id="ecl">0 / 25 解禁</div>
+      <div class="epb"><div class="fill" id="ep" style="width:0%"></div></div>
+      <div id="filterbar" style="display:flex;gap:6px;overflow-x:auto;padding-bottom:10px;margin-bottom:8px"></div>
+      <div id="wg" class="wg"></div>
+    </div>
+    <!-- PROFILE -->
+    <div id="tp" class="tab">
+      <div style="font-family:var(--fd);font-size:18px;font-weight:900;color:var(--gold2);padding:4px 0 8px">プロフィール</div>
+      <div id="loginBanner"></div>
+      <div class="ph">
+        <div class="pa" id="pAvatar">🥃</div>
+        <div style="flex:1;min-width:0">
+          <div class="pn" id="pName">蒸留家</div>
+          <div class="pt" id="ptitle">見習い蒸留家</div>
+          <div class="pst" id="pStat"><span class="dot"></span><span id="pStatTxt">ゲストモード</span></div>
+        </div>
+      </div>
+      <div class="ag">
+        <div class="ac"><div class="al">現在残高</div><div class="av" id="pca">$0</div></div>
+        <div class="ac"><div class="al">総売上</div><div class="av" id="pta">$0</div></div>
+        <div class="ac"><div class="al">受動収益/h</div><div class="av" id="pia">$0</div></div>
+        <div class="ac"><div class="al">図鑑コンプ率</div><div class="av" id="pea">0%</div></div>
+        <div class="ac"><div class="al">蒸留所Lv</div><div class="av" id="pda">1</div></div>
+        <div class="ac"><div class="al">タップ累計</div><div class="av" id="ptp">0</div></div>
+      </div>
+      <div style="background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px">
+        <div style="font-family:var(--fd);font-size:14px;color:var(--cream);font-weight:700;margin-bottom:8px">称号</div>
+        <div id="tlist" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+      </div>
+      <button class="btn-line" id="btnShare" style="display:none">📤 LINEで共有</button>
+      <button class="btn-sec" id="btnExport">💾 セーブをエクスポート</button>
+      <button class="btn-sec" id="btnImport">📥 セーブをインポート</button>
+      <button class="btn-sec" id="btnDebug" style="display:none;border-style:dashed">🧪 検証モード: OFF</button>
+      <button class="rst" id="btnReset">⚠ データをリセット</button>
+      <div style="font-family:var(--fm);font-size:10px;color:var(--muted);text-align:center;padding:12px 0 4px" id="storeInfo"></div>
+    </div>
+  </div>
+  <nav id="nav">
+    <button type="button" class="nb on" data-tab="td"><span class="ic">🥃</span>蒸留</button>
+    <button type="button" class="nb" data-tab="tb"><span class="ic">🏭</span>事業</button>
+    <button type="button" class="nb" data-tab="te"><span class="ic">📖</span>図鑑</button>
+    <button type="button" class="nb" data-tab="tp"><span class="ic">👤</span>プロフィール</button>
+  </nav>
+</div>
+
+<div class="mo h" id="mo">
+  <div class="mb"><button class="mc" id="moClose">✕</button><div id="mc2"></div></div>
+</div>
+
+<div class="confirm" id="confirmDlg">
+  <div class="confirm-box" id="confirmBox">
+    <div id="confirmIcon" style="font-size:32px;text-align:center;margin-bottom:12px">⚠️</div>
+    <div id="confirmTitle" style="font-family:var(--fd);font-size:18px;font-weight:700;color:var(--gold2);text-align:center;margin-bottom:8px">確認</div>
+    <div id="confirmMsg" style="font-size:13px;color:var(--text2);text-align:center;line-height:1.6;margin-bottom:20px;font-family:var(--fb)"></div>
+    <div class="confirm-grid">
+      <button type="button" class="btn-cancel" id="confirmNo">キャンセル</button>
+      <button type="button" id="confirmYes">OK</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ===================== LIFF 設定 ===================== -->
+<script id="liff-config">
+// ▼▼▼ ここを LINE Developers Console で取得した自身の LIFF ID に書き換えてください ▼▼▼
+const LIFF_ID = '__LIFF_ID__';
+// ▲▲▲ 例: const LIFF_ID = '1234567890-abcdefgh'; ▲▲▲
+
+// 検証モードボタンを表示する LINE userId のリスト（オーナー専用）
+// プロフィール画面下部の「保存先」表示で確認できる userId（we_v4: の後ろ部分）を貼り付けてください
+// ゲストモード（Claude/ローカル起動）では LIFF_USER.id が null となり、自動的に表示されます
+const OWNER_LINE_IDS = [
+  // 例: 'U1234567890abcdef1234567890abcdef',
+];
+</script>
+
+<!-- ===================== ゲーム本体 ===================== -->
+<script>
+'use strict';
+/*
+ * Whisky Empire - 内部状態 (G.*) の凡例
+ *   cash : 現金残高
+ *   te   : 累積総売上 (gross sales。タップ・受動・craft 全て売上として加算。原価は引かない)
+ *   tt   : タップ累計回数
+ *   dl   : 蒸留所ティアレベル (1..DL.length)
+ *   cl   : タップ強化レベル (0..MAX_LV)
+ *   fac  : 施設状態 { [id]: { l: 0..MAX_LV, p: 購入済みフラグ } }
+ *   uw   : 解禁済みウィスキーIDの配列
+ *   cw   : 銘柄ごとの製造本数 { [id]: count }
+ *   tl   : 獲得済み称号IDの配列
+ *   ls   : 最終セーブ時刻 (ms)
+ *   ver  : セーブスキーマバージョン
+ */
+
+// ===== バランス調整パラメータ =====
+const BALANCE = {
+  TAP_BASE: 2,
+  TAP_MUL: 1.5,
+  TAP_COST_BASE: 50,
+  TAP_COST_MUL: 3,
+  FAC_INC_MUL: 2,
+  FAC_COST_MUL: 2.5,
+  CRAFT_COST_RATIO: 0.1,
+  YEAR_EXP: 0.6,
+  OFFLINE_CAP_H: 8,
+  TICK_MS: 250,
+  SAVE_INTERVAL_MS: 30000,
+  UI_REFRESH_MS: 2000,
+  MAX_LV: 10,
+  SCHEMA_VERSION: 4,
+  STORAGE_PREFIX: 'we_v4:'
+};
+
+const DL=[
+  {name:"ホームキット",mult:1,unlock:0},
+  {name:"クラフト蒸留所",mult:50,unlock:200000},
+  {name:"地方蒸留所",mult:2500,unlock:10000000},
+  {name:"大手蒸留所",mult:125000,unlock:500000000},
+  {name:"コングロマリット",mult:6250000,unlock:25000000000}
+];
+
+const FD=[
+  {id:"malting",name:"製麦室",icon:"🌾",bi:42,bc:84,pur:0,uc:null,ul:"開始時から利用可能"},
+  {id:"mashing",name:"糖化槽",icon:"🪣",bi:83,bc:166,pur:200,uc:{f:"malting",l:3},ul:"製麦室 Lv3で解禁"},
+  {id:"fermentation",name:"発酵槽",icon:"🫧",bi:165,bc:330,pur:1000,uc:{f:"mashing",l:3},ul:"糖化槽 Lv3で解禁"},
+  {id:"distillation",name:"蒸留器",icon:"⚗️",bi:248,bc:496,pur:5000,uc:{f:"fermentation",l:3},ul:"発酵槽 Lv3で解禁"},
+  {id:"maturation",name:"熟成庫",icon:"🛢️",bi:207,bc:414,pur:20000,uc:{f:"distillation",l:3},ul:"蒸留器 Lv3で解禁"},
+  {id:"bottling",name:"ボトリングライン",icon:"🍾",bi:124,bc:248,pur:50000,uc:{f:"maturation",l:3},ul:"熟成庫 Lv3で解禁"}
+];
+
+const WL=[
+  {id:"glenlivid",name:"Glenlivid",rg:"ハイランド",tp:"スコッチ",yr:8,ck:1.0,bs:100,st:1,em:"🟨",fl:{フルーティ:70,スモーキー:5,スパイシー:30,スウィート:65,フローラル:80},ds:"軽快でフローラル。入門者に最適。"},
+  {id:"glenfiddock",name:"Glenfiddock",rg:"スペイサイド",tp:"スコッチ",yr:10,ck:1.0,bs:120,st:1,em:"🟨",fl:{フルーティ:80,スモーキー:8,スパイシー:25,スウィート:70,フローラル:60},ds:"洋梨とバニラの甘み。世界的定番。"},
+  {id:"johnnie_em",name:"Johnnie Emerald",rg:"スコットランド",tp:"スコッチ",yr:8,ck:1.2,bs:300,st:1,em:"🟨",fl:{フルーティ:60,スモーキー:35,スパイシー:45,スウィート:55,フローラル:40},ds:"クリーンとスモークのバランス。"},
+  {id:"chivas_f",name:"Chévas Régal",rg:"スコットランド",tp:"スコッチ",yr:12,ck:1.8,bs:2000,st:2,em:"🟨",fl:{フルーティ:70,スモーキー:20,スパイシー:50,スウィート:80,フローラル:50},ds:"まろやかで豊かなフルーツ。"},
+  {id:"glenmoran",name:"Glenmoran",rg:"ハイランド",tp:"スコッチ",yr:12,ck:1.0,bs:550,st:2,em:"🟨",fl:{フルーティ:75,スモーキー:5,スパイシー:30,スウィート:80,フローラル:70},ds:"バニラとバターの優しさ。"},
+  {id:"highland_b",name:"Highland Bark",rg:"オークニー",tp:"スコッチ",yr:12,ck:1.1,bs:500,st:2,em:"🟧",fl:{フルーティ:55,スモーキー:45,スパイシー:50,スウィート:60,フローラル:50},ds:"ヘザー蜂蜜と穏やかなスモーク。"},
+  {id:"talisco",name:"Talisco",rg:"スカイ島",tp:"スコッチ",yr:10,ck:1.2,bs:450,st:2,em:"🟦",fl:{フルーティ:40,スモーキー:70,スパイシー:85,スウィート:35,フローラル:20},ds:"海塩とブラックペッパー。辛口派に人気。"},
+  {id:"laphrogue",name:"Laphrogue",rg:"アイラ",tp:"スコッチ",yr:10,ck:1.2,bs:400,st:2,em:"🟫",fl:{フルーティ:20,スモーキー:95,スパイシー:60,スウィート:30,フローラル:10},ds:"強烈なスモーク。個性的な一本。"},
+  {id:"ardbeck",name:"Ardbeck",rg:"アイラ",tp:"スコッチ",yr:12,ck:1.3,bs:600,st:2,em:"🟫",fl:{フルーティ:30,スモーキー:90,スパイシー:70,スウィート:25,フローラル:15},ds:"ピートとコーヒーが絡み合う。"},
+  {id:"macallen",name:"MacAllen",rg:"スペイサイド",tp:"スコッチ",yr:15,ck:2.5,bs:5000,st:3,em:"🟥",fl:{フルーティ:80,スモーキー:5,スパイシー:70,スウィート:90,フローラル:40},ds:"シェリー樽熟成の極致。"},
+  {id:"balvenix",name:"Balvenix",rg:"スペイサイド",tp:"スコッチ",yr:17,ck:2.2,bs:8000,st:3,em:"🟥",fl:{フルーティ:70,スモーキー:10,スパイシー:75,スウィート:85,フローラル:55},ds:"蜂蜜とスパイスの複雑なレイヤー。"},
+  {id:"dalvista",name:"Dalvista",rg:"ハイランド",tp:"スコッチ",yr:18,ck:2.8,bs:12000,st:3,em:"🟥",fl:{フルーティ:65,スモーキー:10,スパイシー:60,スウィート:95,フローラル:35},ds:"シェリーとチョコ。王族の愛した一本。"},
+  {id:"jameston",name:"Jameston",rg:"コーク",tp:"アイリッシュ",yr:8,ck:1.0,bs:150,st:1,em:"🟩",fl:{フルーティ:65,スモーキー:3,スパイシー:20,スウィート:70,フローラル:55},ds:"スムースで軽快。アイリッシュの王道。"},
+  {id:"rushmill",name:"Rushmill",rg:"アントリム",tp:"アイリッシュ",yr:10,ck:1.1,bs:400,st:2,em:"🟩",fl:{フルーティ:70,スモーキー:5,スパイシー:25,スウィート:75,フローラル:60},ds:"蜂蜜とリンゴ。世界最古の蒸留所系。"},
+  {id:"jack_d",name:"Jack Danielo's",rg:"テネシー",tp:"バーボン",yr:4,ck:1.0,bs:200,st:1,em:"🟫",fl:{フルーティ:40,スモーキー:30,スパイシー:45,スウィート:80,フローラル:10},ds:"チャコールろ過のテネシーシンボル。"},
+  {id:"makers_w",name:"Maker's Wax",rg:"バーズタウン",tp:"バーボン",yr:5,ck:1.1,bs:350,st:1,em:"🟫",fl:{フルーティ:50,スモーキー:10,スパイシー:35,スウィート:90,フローラル:25},ds:"小麦由来の甘さ。赤ワックスが目印。"},
+  {id:"buffalo_t",name:"Buffalo Tracks",rg:"フランクフォート",tp:"バーボン",yr:7,ck:1.3,bs:800,st:2,em:"🟫",fl:{フルーティ:55,スモーキー:15,スパイシー:65,スウィート:75,フローラル:20},ds:"キャラメルとオークのリッチな味。"},
+  {id:"pappy_v",name:"Pappy Van Rinkle",rg:"ケンタッキー",tp:"バーボン",yr:23,ck:3.0,bs:80000,st:3,em:"🟫",fl:{フルーティ:60,スモーキー:20,スパイシー:80,スウィート:95,フローラル:30},ds:"幻のバーボン。入手は宝くじ級。"},
+  {id:"yamashiki",name:"Yamashiki",rg:"山崎",tp:"ジャパニーズ",yr:18,ck:3.0,bs:20000,st:3,em:"⬜",fl:{フルーティ:80,スモーキー:10,スパイシー:55,スウィート:85,フローラル:70},ds:"ミズナラ樽の白檀香。日本の傑作。"},
+  {id:"hakusha",name:"Hakusha",rg:"白州",tp:"ジャパニーズ",yr:18,ck:2.8,bs:18000,st:3,em:"⬜",fl:{フルーティ:85,スモーキー:20,スパイシー:40,スウィート:70,フローラル:90},ds:"南アルプスの清涼感。フレッシュな一本。"},
+  {id:"hibique",name:"Hibique",rg:"京都/大阪",tp:"ジャパニーズ",yr:21,ck:3.5,bs:50000,st:3,em:"⬜",fl:{フルーティ:85,スモーキー:15,スパイシー:60,スウィート:90,フローラル:80},ds:"調和と華やかさの極致。最高峰ブレンデッド。"},
+  {id:"nikkei_p",name:"Nikkei Pure",rg:"余市",tp:"ジャパニーズ",yr:12,ck:2.0,bs:3000,st:2,em:"⬜",fl:{フルーティ:75,スモーキー:30,スパイシー:50,スウィート:65,フローラル:55},ds:"北海道の潮風を感じる力強さ。"},
+  {id:"suntree_t",name:"Suntree Toki",rg:"大阪",tp:"ジャパニーズ",yr:8,ck:1.5,bs:800,st:2,em:"⬜",fl:{フルーティ:70,スモーキー:5,スパイシー:35,スウィート:65,フローラル:75},ds:"ハーブとシトラス。ハイボールに最適。"},
+  {id:"crown_r",name:"Crown Royale",rg:"マニトバ",tp:"カナディアン",yr:10,ck:1.4,bs:600,st:2,em:"🟪",fl:{フルーティ:65,スモーキー:5,スパイシー:55,スウィート:75,フローラル:40},ds:"まろやかなライ麦風味。カナダ王室御用達。"},
+  {id:"imperial",name:"Imperial Reserve",rg:"秘蔵",tp:"スコッチ",yr:25,ck:5.0,bs:500000,st:3,em:"👑",fl:{フルーティ:95,スモーキー:50,スパイシー:90,スウィート:95,フローラル:85},ds:"全銘柄コンプリートで解放される伝説の一本。"}
+];
+
+const WL_TYPES=['all','スコッチ','バーボン','ジャパニーズ','アイリッシュ','カナディアン'];
+const WL_TYPE_LABELS={all:'全て','スコッチ':'スコッチ','バーボン':'バーボン','ジャパニーズ':'ジャパニーズ','アイリッシュ':'アイリッシュ','カナディアン':'カナディアン'};
+
+const TT=[
+  {id:"t1",lb:"初打ち",ch:s=>s.tt>=1},
+  {id:"t2",lb:"百叩き",ch:s=>s.tt>=100},
+  {id:"t3",lb:"$1K達成",ch:s=>s.te>=1000},
+  {id:"t4",lb:"$1M達成",ch:s=>s.te>=1000000},
+  {id:"t5",lb:"$1B達成",ch:s=>s.te>=1000000000},
+  {id:"t6",lb:"見習いテイスター",ch:s=>s.uw.length>=5},
+  {id:"t7",lb:"熟練テイスター",ch:s=>s.uw.length>=15},
+  {id:"t8",lb:"マスターテイスター",ch:s=>s.uw.length>=25},
+  {id:"t9",lb:"クラフト蒸留家",ch:s=>s.dl>=2},
+  {id:"t10",lb:"地方の名士",ch:s=>s.dl>=3},
+  {id:"t11",lb:"全施設稼働",ch:s=>Object.values(s.fac).filter(f=>f.p).length>=6}
+];
+
+// 図鑑の解禁条件（label = 表示用テキスト、secret = 解禁条件を非開示）
+// 末尾3銘柄（hibique / pappy_v / imperial）はシークレット扱い
+const UNLOCK_REQ=[
+  {id:"glenlivid",req:()=>true,label:"最初から利用可能"},
+  {id:"jameston",req:()=>G.te>=5000,label:"総売上 $5K で解禁"},
+  {id:"jack_d",req:()=>G.te>=15000,label:"総売上 $15K で解禁"},
+  {id:"johnnie_em",req:()=>G.te>=30000,label:"総売上 $30K で解禁"},
+  {id:"makers_w",req:()=>G.te>=60000,label:"総売上 $60K で解禁"},
+  {id:"glenfiddock",req:()=>G.te>=100000,label:"総売上 $100K で解禁"},
+  {id:"rushmill",req:()=>G.te>=200000,label:"総売上 $200K で解禁"},
+  {id:"laphrogue",req:()=>G.te>=350000,label:"総売上 $350K で解禁"},
+  {id:"talisco",req:()=>G.te>=500000,label:"総売上 $500K で解禁"},
+  {id:"highland_b",req:()=>G.te>=750000,label:"総売上 $750K で解禁"},
+  {id:"ardbeck",req:()=>G.te>=1200000,label:"総売上 $1.2M で解禁"},
+  {id:"glenmoran",req:()=>G.te>=2000000,label:"総売上 $2M で解禁"},
+  {id:"buffalo_t",req:()=>G.te>=3500000,label:"総売上 $3.5M で解禁"},
+  {id:"suntree_t",req:()=>G.te>=5000000,label:"総売上 $5M で解禁"},
+  {id:"chivas_f",req:()=>G.te>=8000000,label:"総売上 $8M で解禁"},
+  {id:"nikkei_p",req:()=>G.te>=12000000,label:"総売上 $12M で解禁"},
+  {id:"crown_r",req:()=>G.te>=20000000,label:"総売上 $20M で解禁"},
+  {id:"macallen",req:()=>G.dl>=2,label:"蒸留所Lv2 で解禁"},
+  {id:"balvenix",req:()=>G.dl>=2&&G.te>=50000000,label:"蒸留所Lv2 + 総売上 $50M で解禁"},
+  {id:"dalvista",req:()=>G.dl>=3,label:"蒸留所Lv3 で解禁"},
+  {id:"yamashiki",req:()=>G.dl>=3&&G.te>=200000000,label:"蒸留所Lv3 + 総売上 $200M で解禁"},
+  {id:"hakusha",req:()=>G.dl>=3&&G.te>=300000000,label:"蒸留所Lv3 + 総売上 $300M で解禁"},
+  {id:"hibique",req:()=>G.dl>=4,label:"???",secret:true},
+  {id:"pappy_v",req:()=>G.dl>=4&&G.te>=2000000000,label:"???",secret:true},
+  {id:"imperial",req:()=>{const a=WL.filter(w=>w.id!=='imperial');return a.every(w=>G.uw.includes(w.id));},label:"???",secret:true}
+];
+
+function getUnlockInfo(id){
+  const u=UNLOCK_REQ.find(x=>x.id===id);
+  return u?{label:u.label||'',secret:!!u.secret}:{label:'不明',secret:false};
+}
+
+const FAC_UPG={
+  malting:[
+    {eq:"フロアモルティング部屋",desc:"大麦を床に広げて手作業で発芽させる伝統的な石造り部屋を整備。スコッチ発祥の製法を再現。"},
+    {eq:"ステアリングシャベル×3追加",desc:"発芽中の大麦を均一にかき混ぜる専用シャベルを追加調達。発芽ムラを解消し品質安定。"},
+    {eq:"小型ピートキルン設置",desc:"泥炭（ピート）燃料の乾燥炉を設置。これによりアイラ系スモーキーフレーバーの付与が可能に。"},
+    {eq:"温湿度自動管理システム",desc:"発芽庫の温度・湿度をセンサーで自動制御。季節や天候に左右されない安定製麦を実現。"},
+    {eq:"サラディンボックス（機械式撹拌槽）",desc:"床面積の3倍の容量を持つ機械撹拌式製麦槽を導入。生産量が2倍に拡張。"},
+    {eq:"無煙炭キルン増設",desc:"スモーキーなピートとは別に無煙炭炉を追加。ライトフレーバー専用ラインが分離稼働。"},
+    {eq:"ドラムモルティング機",desc:"回転ドラムで大麦を連続製麦。品質ブレを最小化し、大量バッチに対応。"},
+    {eq:"グリストミル（高性能粉砕機）",desc:"製麦後の麦芽を3段階粒度で精密粉砕。粗・細・粉の最適比率で糖化効率が向上。"},
+    {eq:"ピート含水率リアルタイムセンサー",desc:"燃焼中のピート水分量を自動計測・制御。フェノール値（スモーキー強度）を銘柄別に精密調整可能に。"},
+    {eq:"全自動製麦プラント（24時間無人稼働）",desc:"浸麦・発芽・乾燥・粉砕の全工程を完全自動化。夜間・休日も止まらない最大効率の製麦体制が完成。"}
+  ],
+  mashing:[
+    {eq:"鋳鉄製マッシュタン（小型）",desc:"グリストに仕込み水を加えて糖化させる鋳鉄槽を導入。麦汁（ウォート）の初抽出が可能に。"},
+    {eq:"スパージャームノズル設置",desc:"タン内を均一加熱するノズルを追加。糖化効率が15%向上し、麦汁の収量が増加。"},
+    {eq:"ステンレス製マッシュタンに換装",desc:"清掃・滅菌が容易なステンレス製に刷新。バッチ間の雑菌リスクをゼロに近づけ品質が安定。"},
+    {eq:"ウォート急冷クーラント設備",desc:"高温の麦汁を発酵最適温度（20℃）へ素早く冷却する熱交換器。工程時間を30分短縮。"},
+    {eq:"ロータリースパージャー（自動散水）",desc:"第2・第3抽出時の仕込み水散布を自動化。糖分回収率が20%向上し原料コストが削減。"},
+    {eq:"グリスト精密計量システム",desc:"投入する粉砕麦芽をグラム単位で自動計量。バッチごとの糖度ブレをゼロに抑制。"},
+    {eq:"大型マッシュタン第2基増設",desc:"2基並列稼働で連続仕込みラインが完成。日産バッチ数が2倍に拡大。"},
+    {eq:"麦汁比重・温度自動測定器",desc:"糖度をリアルタイム計測し最適なタイミングで次工程に自動移行。職人の経験値を数値化。"},
+    {eq:"廃棄ドラフ圧縮乾燥機",desc:"搾りかす（ドラフ）を圧縮乾燥し牛飼料・バイオ燃料として外販。副収益で設備投資を回収。"},
+    {eq:"全自動マッシングシステム（AI制御）",desc:"仕込み水温度・投入量・撹拌速度・移送タイミングをAIが完全制御。人手ゼロの自動糖化工程が完成。"}
+  ],
+  fermentation:[
+    {eq:"ダグラスファー製ウォッシュバック×2基",desc:"スコッチ伝統のオレゴン松製発酵槽を2基設置。酵母を投入し約72時間かけてウォッシュ（約8%アルコール）を生成。"},
+    {eq:"温度管理ウォータージャケット",desc:"発酵熱を外套冷水で制御する冷却装置を装着。酵母の活性域（18〜22℃）を自動維持。"},
+    {eq:"スイッチャー（泡切り回転刃）",desc:"発酵ピーク時の過剰な泡を切断するアーム式装置。オーバーフロー事故を防止し、フルーティエステルを生成。"},
+    {eq:"ウォッシュバック2基追加（計4基）",desc:"並列発酵ラインが倍増。仕込みサイクルを圧縮し、1日あたりの蒸留可能バッチ数が増加。"},
+    {eq:"ステンレス製ウォッシュバック×2基導入",desc:"清掃・CIP滅菌が容易なSS製を追加。衛生管理レベルが工業基準に到達。"},
+    {eq:"酵母ブレンド研究室",desc:"複数の酵母株を配合実験できるラボを設置。フルーティ・スパイシー等のフレーバー特化銘柄の開発が可能に。"},
+    {eq:"CO₂回収・再利用装置",desc:"発酵中に大量発生するCO₂を回収してボイラー燃料に転換。エネルギーコストを約15%削減。"},
+    {eq:"ウォッシュバック4基追加（計10基）",desc:"大規模並列発酵体制が完成。産業規模の生産量に到達し、ブレンデッドラインの原酒供給が可能に。"},
+    {eq:"長期発酵プログラム（96時間超）",desc:"低温・長時間発酵コースを設定。通常の72時間より長い発酵で複雑なエステル香と深いコクが生まれる。"},
+    {eq:"全自動発酵管理AI（24時間監視）",desc:"pH・アルコール度・温度・糖度をAIが同時監視・最適化。ロット間の品質差がゼロになる究極の発酵管理。"}
+  ],
+  distillation:[
+    {eq:"ランタン型ポットスチル（初留器）",desc:"伝統的な銅製洋ナシ型蒸留器を設置。ウォッシュを加熱蒸発させ、アルコール度20〜25%のローワインを得る。"},
+    {eq:"スピリットスチル（再留器）増設",desc:"2回目の蒸留器を追加設置。シングルモルトに必要な2回蒸留が完結し、65%超のニューメイクスピリットが生まれる。"},
+    {eq:"スピリットセーフ（採取制御槽）",desc:"蒸留液の「ハート」部分のみを精確に切り出すガラス製測定槽。頭（フォア）と尾（フェインツ）を自動分離。"},
+    {eq:"蒸気間接加熱ライン全面刷新",desc:"直火から蒸気コイル間接加熱に移行。焦げ付きゼロ・温度精度±0.5℃で品質が飛躍的に安定。"},
+    {eq:"ボール型ポットスチル追加",desc:"球状ネック形状で還流量が増加。よりライトでフローラルな原酒を生産できるラインが独立稼働。"},
+    {eq:"ウォームタブ（伝統式冷却水槽）",desc:"蒸留蒸気を冷却する木製水槽を設置。シェルアンドチューブ式より接触時間が長く、コクのある重口原酒が生まれる。"},
+    {eq:"コラムスチル（連続蒸留機）",desc:"グレーンウィスキー生産に必要な連続式蒸留器を設置。これによりブレンデッドウィスキー製造ラインが解禁。"},
+    {eq:"ポットスチル全3対体制",desc:"初留・再留ペアをさらに2セット追加し3ライン同時稼働。生産量が3倍に拡張し、複数銘柄の同時蒸留が可能に。"},
+    {eq:"スチル形状カスタマイズ工房",desc:"新銘柄ごとに専用形状のスチルを設計・鋳造できる工房を設置。形状とフレーバーの相関を自由に実験。"},
+    {eq:"マスター蒸留士専用ラボ",desc:"世界最高峰の蒸留士を専属招聘。極限品質の原酒生産体制と、他に類を見ない限定銘柄の開発体制が完成。"}
+  ],
+  maturation:[
+    {eq:"ダンネージ式石造り熟成庫（第1棟）",desc:"伝統的な低天井・石造りの熟成庫を建設。バーボン樽50本を床置き収容。年1〜2%のエンジェルズシェアで濃縮が始まる。"},
+    {eq:"ファーストフィルバーボン樽×100本",desc:"アメリカから輸入した初回使用バーボン樽を調達。バニラ・キャラメル・ハチミツ系フレーバー銘柄の熟成が可能に。"},
+    {eq:"オロロソシェリー樽×30本",desc:"スペイン産シェリー古樽を追加。ドライフルーツ・スパイス・チョコレート系フレーバーの熟成が可能に。"},
+    {eq:"熟成庫第2棟増築",desc:"隣接地に同規模の第2棟を建設。収容能力が2倍に拡大し、同時熟成バッチ数が増加。"},
+    {eq:"樽位置ローテーション管理システム",desc:"庫内の上下・前後の温度差を補正するため樽位置を定期的に管理。熟成品質のバッチ間ブレを均一化。"},
+    {eq:"国産ミズナラ樽×20本",desc:"希少な日本産水楢（ミズナラ）材の樽を調達。白檀・伽羅・ビャクダンの独特な香りを付与。ジャパニーズ銘柄の品質が飛躍。"},
+    {eq:"ポートパイプ樽×15本",desc:"ポルトガル産トウニーポートワイン古樽を入手。濃厚なダークフルーツ・スパイス系の高単価銘柄ラインが追加。"},
+    {eq:"大型ラック式熟成庫(第3棟)",desc:"工業用ラック棚で樽を縦積み管理する第3棟を建設。敷地面積あたりの収容数が最大化し、維持コストが削減。"},
+    {eq:"エンジェルズシェア部分回収装置",desc:"熟成中に揮発するアルコール蒸気を一部回収し香料・副産品として活用。年2%のロスを1%以下に半減。"},
+    {eq:"プレミアム希少樽バイヤー室",desc:"世界中のオークションで希少古樽を専属バイヤーが入札購入できる専用室を設置。伝説銘柄の熟成基盤が完成。"}
+  ],
+  bottling:[
+    {eq:"手動瓶詰めライン",desc:"スタッフによる手作業の充填・打栓ライン。1時間50本と小規模だが、各ボトルに目が届く丁寧な仕上げ。"},
+    {eq:"半自動定量充填機",desc:"ノズル式の定量充填機を導入。速度3倍・充填誤差ゼロを実現し、小売流通向けの均一品質をクリア。"},
+    {eq:"自動ラベル貼付機",desc:"ラベルを高速・正確に貼付する自動ラベラーを導入。外観品質が統一され国際的な小売基準をクリア。"},
+    {eq:"コールドフィルトレーション装置",desc:"低温ろ過でフロック（白濁粒子）を除去。輸出・免税店向けに求められる清澄度の国際基準を達成。"},
+    {eq:"ノンチルフィルト専用ライン",desc:"あえてろ過しないプレミアム仕様の独立ラインを追加。フルボディの風味が保たれ、プレミアム銘柄の評価スコアが上昇。"},
+    {eq:"カスクストレングス充填設備",desc:"加水なし原酒強度（55〜65%）での瓶詰めが可能に。コレクター向け高単価ラインが解禁。"},
+    {eq:"全自動充填・打栓・巻締ライン（1000本/h）",desc:"充填〜打栓〜ラベル〜封緘を一貫自動化。量産グレードの出荷能力を獲得し、国内全量販対応が完了。"},
+    {eq:"ワックスシール手動封印機",desc:"Maker's Wax風の手作業ワックス封印機を導入。プレミアム外装の演出で販売単価が30%向上。"},
+    {eq:"シリアルナンバー刻印機",desc:"本数限定シングルカスクボトルに固有番号を自動刻印。コレクター市場での希少性・需要が急増。"},
+    {eq:"ロボット梱包・輸出出荷自動化システム",desc:"ピッキング・梱包・仕分け・輸出ラベルまでロボットが完全無人化。世界中の販売チャネルへ24時間即日対応体制が完成。"}
+  ]
+};
+
+// ===== グローバル =====
+let G = defState();
+let CF = 'all';
+let LIFF_USER = { id:null, name:null, picture:null, isLine:false };
+
+// ===== ユーティリティ =====
+function $(id){return document.getElementById(id);}
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ===== 状態の初期値・整形 =====
+function defState(){
+  // 全施設エントリを事前に初期化（fac が空だと rbus() が TypeError を起こすため）
+  const fac={};
+  FD.forEach(f=>{fac[f.id]={l:0,p:false};});
+  if(fac['malting'])fac['malting'].p=true; // 開始施設は最初から購入済み扱い
+  return {
+    cash:0,te:0,tt:0,dl:1,cl:0,fac,uw:[],cw:{},aw:{},tl:[],
+    ls:Date.now(),ver:BALANCE.SCHEMA_VERSION,
+    dbgMul:1 // 検証モード倍率（1=通常、100=受動収益100倍）
+  };
+}
+
+function sanitize(s){
+  if(!s||typeof s!=='object')return defState();
+  const d=defState();
+  s.cash=Math.max(0,Number(s.cash)||0);
+  s.te=Math.max(0,Number(s.te)||0);
+  s.tt=Math.max(0,Math.floor(Number(s.tt)||0));
+  s.dl=Math.min(DL.length,Math.max(1,Math.floor(Number(s.dl)||1)));
+  s.cl=Math.min(BALANCE.MAX_LV,Math.max(0,Math.floor(Number(s.cl)||0)));
+  if(!Array.isArray(s.uw))s.uw=[];
+  if(!Array.isArray(s.tl))s.tl=[];
+  if(typeof s.cw!=='object'||s.cw===null)s.cw={};
+  // 自動販売フラグ（既知ウィスキーIDのみ保持）
+  if(typeof s.aw!=='object'||s.aw===null)s.aw={};
+  const aw={};
+  Object.keys(s.aw).forEach(id=>{if(WL.find(w=>w.id===id))aw[id]=!!s.aw[id];});
+  s.aw=aw;
+  if(typeof s.fac!=='object'||s.fac===null)s.fac={};
+  const fac={};
+  FD.forEach(f=>{
+    const cur=s.fac[f.id]||{l:0,p:false};
+    fac[f.id]={
+      l:Math.min(BALANCE.MAX_LV,Math.max(0,Math.floor(Number(cur.l)||0))),
+      p:!!cur.p
+    };
+  });
+  s.fac=fac;
+  s.fac['malting'].p=true; // 開始施設は常時利用可
+  s.ls=Number(s.ls)||Date.now();
+  s.dbgMul=Math.max(1,Math.min(10000,Number(s.dbgMul)||1));
+  s.ver=BALANCE.SCHEMA_VERSION;
+  return {...d,...s};
+}
+
+function migrate(s){
+  if(!s)return defState();
+  s.ver=BALANCE.SCHEMA_VERSION;
+  return s;
+}
+
+// ===== ストレージ：ユーザーごとのキー =====
+function storageKey(){
+  const uid = LIFF_USER.id || 'guest';
+  return BALANCE.STORAGE_PREFIX + uid;
+}
+
+function load(){
+  try{
+    const raw=localStorage.getItem(storageKey());
+    G=raw?sanitize(migrate(JSON.parse(raw))):defState();
+  }catch(e){
+    console.warn('load failed:',e);
+    G=defState();
+  }
+}
+
+function save(){
+  try{
+    G.ls=Date.now();
+    localStorage.setItem(storageKey(),JSON.stringify(G));
+  }catch(e){
+    toast('セーブ失敗: '+e.message,3000);
+  }
+}
+
+function clearStorage(){
+  try{localStorage.removeItem(storageKey());return true;}
+  catch(e){console.warn('removeItem failed:',e);return false;}
+}
+
+// ===== 計算 =====
+function dm(){return DL[G.dl-1].mult;}
+function cv(){return BALANCE.TAP_BASE*dm()*Math.pow(BALANCE.TAP_MUL,G.cl);}
+function cuc(){
+  if(G.cl>=BALANCE.MAX_LV)return Infinity;
+  return Math.round(BALANCE.TAP_COST_BASE*Math.pow(BALANCE.TAP_COST_MUL,G.cl)*dm());
+}
+function fi(id){
+  // 個別施設の時間あたり収益。dbgMul はここで適用し、合計と個別の単位を一致させる
+  const f=FD.find(x=>x.id===id),s=G.fac[id];
+  if(!s||!s.p||s.l===0)return 0;
+  return f.bi*dm()*Math.pow(BALANCE.FAC_INC_MUL,s.l)*(G.dbgMul||1);
+}
+function ti(){
+  // 受動収益（時間あたり）の合計。fi() が既に dbgMul を含むのでここでは掛けない
+  return FD.reduce((s,f)=>s+fi(f.id),0);
+}
+function fuc(id){
+  const f=FD.find(x=>x.id===id),l=G.fac[id].l;
+  if(l>=BALANCE.MAX_LV)return Infinity;
+  return Math.round(f.bc*dm()*Math.pow(BALANCE.FAC_COST_MUL,l));
+}
+function fpc(id){return Math.round(FD.find(x=>x.id===id).pur*dm());}
+function isUL(id){
+  const f=FD.find(x=>x.id===id);
+  if(!f.uc)return true;
+  const d=G.fac[f.uc.f];
+  return d&&d.l>=f.uc.l;
+}
+function wp(id){
+  const w=WL.find(x=>x.id===id);
+  return Math.round(w.bs*Math.pow(w.yr/3,BALANCE.YEAR_EXP)*w.ck*dm());
+}
+
+function fmt(n){
+  if(typeof n!=='number'||isNaN(n))return'$0';
+  if(!isFinite(n))return'$∞';
+  if(n<0)return'-'+fmt(-n);
+  if(n>=1e12)return'$'+(n/1e12).toFixed(2)+'兆';
+  if(n>=1e9)return'$'+(n/1e9).toFixed(2)+'B';
+  if(n>=1e6)return'$'+(n/1e6).toFixed(2)+'M';
+  if(n>=1e4)return'$'+(n/1e3).toFixed(1)+'K';
+  return'$'+Math.floor(n).toLocaleString();
+}
+
+// ===== 浮遊テキスト DOM プール =====
+const FT_POOL=[];const FT_MAX=20;let ftIdx=0;
+function showFT(text,x,y){
+  let el=FT_POOL[ftIdx];
+  if(!el){
+    el=document.createElement('div');
+    el.className='ft';
+    document.body.appendChild(el);
+    FT_POOL[ftIdx]=el;
+  }
+  el.textContent=text;
+  el.style.left=(x-30)+'px';
+  el.style.top=(y-20)+'px';
+  el.classList.remove('run');
+  void el.offsetWidth;
+  el.classList.add('run');
+  ftIdx=(ftIdx+1)%FT_MAX;
+}
+
+// ===== ゲームアクション =====
+function tap(e){
+  const v=cv();
+  const prevUW=G.uw.length;
+  G.cash+=v;G.te+=v;G.tt++;
+  if(e){
+    const x=e.clientX||(e.touches&&e.touches[0]&&e.touches[0].clientX)||160;
+    const y=e.clientY||(e.touches&&e.touches[0]&&e.touches[0].clientY)||300;
+    showFT('+'+fmt(v),x,y);
+  }
+  $('hc').textContent=fmt(G.cash);
+  $('st').textContent=fmt(G.te);
+  chkUnlocks();
+  chkT();
+  // 解禁が増えた場合は図鑑コンプ進捗(sec)を即時反映
+  if(G.uw.length!==prevUW)$('sec').textContent=G.uw.length+'/'+WL.length;
+}
+
+function upgClick(){
+  const c=cuc();
+  if(G.cash<c||G.cl>=BALANCE.MAX_LV)return;
+  G.cash-=c;G.cl++;
+  chkT();chkUnlocks();
+  rdistLight();rbus();updHdr();
+  toast(`タップ強化 Lv${G.cl}! → ${fmt(cv())}/tap`);
+}
+
+function purFac(id){
+  if(!isUL(id))return;
+  const c=fpc(id);
+  if(G.cash<c){toast('資金不足');return;}
+  G.cash-=c;G.fac[id].p=true;
+  chkT();chkUnlocks();rbus();rdistLight();updHdr();
+  toast(`${FD.find(f=>f.id===id).name}を購入!`);
+}
+
+function upgFac(id){
+  if(!G.fac[id].p||G.fac[id].l>=BALANCE.MAX_LV)return;
+  const c=fuc(id);
+  if(G.cash<c){toast('資金不足');return;}
+  G.cash-=c;G.fac[id].l++;
+  chkT();chkUnlocks();rbus();rdistLight();updHdr();
+  const f=FD.find(x=>x.id===id);
+  toast(`${f.name} Lv${G.fac[id].l}に強化!`);
+  closeM();
+}
+
+function upgDist(){
+  const n=G.dl+1;
+  if(n>DL.length)return;
+  const c=DL[n-1].unlock;
+  if(G.cash<c){toast('資金不足');return;}
+  showConfirm({
+    title:'蒸留所アップグレード',
+    msg:`${escapeHtml(DL[n-1].name)} へアップグレードしますか？<br>コスト: <b style="color:var(--gold2)">${fmt(c)}</b>`,
+    icon:'🏭',danger:false,yesLabel:'実行',
+    onYes:()=>{
+      G.cash-=c;G.dl=n;
+      chkT();chkUnlocks();rall();
+      toast(`🎉 ${DL[n-1].name}へアップグレード!`,3000);
+    }
+  });
+}
+
+function craft(id){
+  const w=WL.find(x=>x.id===id);
+  const p=wp(id);
+  const cc=Math.round(p*BALANCE.CRAFT_COST_RATIO);
+  if(G.cash<cc){toast('資金不足');closeM();return;}
+  G.cash-=cc;G.cash+=p;
+  G.te+=p; // gross sales
+  G.cw[id]=(G.cw[id]||0)+1;
+  if(!G.uw.includes(id))G.uw.push(id);
+  chkT();chkUnlocks();
+  rall();closeM();
+  toast(`🥃 ${w.name} 販売! +${fmt(p-cc)}`);
+}
+
+// ===== 自動販売 =====
+// ボトリングライン購入後に有効。レベルに応じて販売間隔が短縮される
+// 間隔(ms) = max(500, 5000 / max(1, ボトリングLv))
+//   Lv1: 5000ms (5秒に1本) → Lv5: 1000ms → Lv10: 500ms
+function autoSellInterval(){
+  const bot=G.fac&&G.fac.bottling;
+  if(!bot||!bot.p||bot.l===0)return Infinity;
+  return Math.max(500,5000/bot.l);
+}
+const lastAutoSell={}; // {whiskyId: timestamp}
+function autoSellTick(){
+  const interval=autoSellInterval();
+  if(!isFinite(interval))return;
+  if(!G.aw)return;
+  const now=Date.now();
+  let soldAny=false;
+  Object.keys(G.aw).forEach(id=>{
+    if(!G.aw[id])return;
+    if(!G.uw.includes(id))return;
+    if(!WL.find(w=>w.id===id))return; // 未知IDの保険
+    if((now-(lastAutoSell[id]||0))<interval)return;
+    const p=wp(id);
+    const cc=Math.round(p*BALANCE.CRAFT_COST_RATIO);
+    if(!isFinite(p)||p<=0||G.cash<cc)return;
+    G.cash-=cc;G.cash+=p;G.te+=p;
+    G.cw[id]=(G.cw[id]||0)+1;
+    lastAutoSell[id]=now;
+    soldAny=true;
+  });
+  if(soldAny){
+    $('hc').textContent=fmt(G.cash);
+    $('st').textContent=fmt(G.te);
+  }
+}
+function toggleAutoSell(id){
+  if(!G.aw)G.aw={};
+  G.aw[id]=!G.aw[id];
+  save();
+  const w=WL.find(x=>x.id===id);
+  toast(G.aw[id]?`🤖 ${w.name} 自動販売 ON`:`⏸ ${w.name} 自動販売 OFF`,2000);
+  // モーダルを再描画してボタン状態を反映
+  openWhiskyModal(id);
+  // 図鑑カード上のバッジも更新
+  const at=document.querySelector('.tab.on');
+  if(at&&at.id==='te')renc();
+}
+
+// ===== 解禁・称号判定（イベント駆動） =====
+function chkT(){
+  TT.forEach(t=>{
+    if(!G.tl.includes(t.id)&&t.ch(G)){
+      G.tl.push(t.id);
+      toast(`🏅 称号獲得: ${t.lb}`,3000);
+    }
+  });
+}
+
+function chkUnlocks(){
+  let imperialReady=false;
+  UNLOCK_REQ.forEach(u=>{
+    if(!G.uw.includes(u.id)&&u.req()){
+      G.uw.push(u.id);
+      const w=WL.find(x=>x.id===u.id);
+      if(w){
+        if(u.id==='imperial')imperialReady=true;
+        else toast(`📖 図鑑解禁: ${w.name}!`,3000);
+      }
+    }
+  });
+  if(imperialReady)toast('🏆 全銘柄コンプリート! Imperial Reserve 解放!',4000);
+}
+
+// ===== オフライン補正 =====
+function offline(){
+  // G.ls を関数の冒頭で即時更新し、再呼び出し時の二重補正を防止
+  // （visibilitychange/init/復帰イベント等で複数回トリガーされる可能性に備える）
+  const now=Date.now();
+  const hours=Math.min((now-G.ls)/3600000,BALANCE.OFFLINE_CAP_H);
+  G.ls=now;
+  if(hours<=0)return;
+  const earned=ti()*hours;
+  if(earned>0&&isFinite(earned)){
+    G.cash+=earned;G.te+=earned;
+    toast(`💤 オフライン収益: +${fmt(earned)} (${hours.toFixed(1)}h)`,4000);
+  }
+}
+
+// ===== タイトル =====
+function gTitle(){
+  const order=['t10','t9','t8','t7','t6','t5','t4','t3','t11','t2','t1'];
+  for(const id of order){
+    if(G.tl.includes(id))return TT.find(t=>t.id===id).lb;
+  }
+  return '見習い蒸留家';
+}
+
+// ===== 描画 =====
+function updHdr(){$('hc').textContent=fmt(G.cash);}
+
+function rdistLight(){
+  const v=cv();
+  $('sc2').textContent=fmt(v);
+  $('cvl').textContent=fmt(v);
+  $('sec').textContent=G.uw.length+'/'+WL.length;
+  $('si').textContent=fmt(ti())+'/h';
+  $('st').textContent=fmt(G.te);
+}
+
+function rdist(){
+  const d=DL[G.dl-1];
+  $('dn').textContent=d.name;
+  $('dlv').textContent=G.dl;
+  rdistLight();
+  const n=G.dl+1;const btn=$('dub');const inf=$('dni');
+  if(n>DL.length){btn.textContent='最大';btn.className='ub mx';inf.textContent='最大レベル';}
+  else{
+    const c=DL[n-1].unlock;
+    btn.textContent=fmt(c);
+    btn.className='ub'+(G.cash>=c?'':' ca');
+    inf.textContent='次: '+DL[n-1].name;
+  }
+}
+
+// 既存ボタンの活性/非活性のみを差分更新（カードは再生成しない）
+// 受動収益で残高が閾値を超えた瞬間にボタン色が反転する
+function rbusUpdate(){
+  // 蒸留所アップグレードボタン
+  const dub=$('dub');
+  if(dub&&G.dl<DL.length){
+    const c=DL[G.dl].unlock;
+    dub.className='ub'+(G.cash>=c?'':' ca');
+    dub.textContent=fmt(c);
+  }
+  // タップ強化ボタン
+  const cb=$('cub');
+  if(cb&&G.cl<BALANCE.MAX_LV){
+    const cc=cuc();
+    cb.className='ub'+(G.cash>=cc?'':' ca');
+    cb.textContent=fmt(cc);
+  }
+  // 製造施設の購入/アップグレードボタン
+  document.querySelectorAll('#fl button[data-act]').forEach(btn=>{
+    const id=btn.dataset.id, act=btn.dataset.act;
+    if(!id||!G.fac[id])return;
+    if(act==='pur'){
+      const pc=fpc(id);
+      btn.className='ub'+(G.cash>=pc?'':' ca');
+      btn.textContent=fmt(pc);
+    }else if(act==='upg'){
+      const l=G.fac[id].l;
+      if(l>=BALANCE.MAX_LV){btn.className='ub mx';btn.textContent='MAX';}
+      else{const uc=fuc(id);btn.className='ub'+(G.cash>=uc?'':' ca');btn.textContent=fmt(uc);}
+    }
+  });
+}
+
+function rbus(){
+  const clv=G.cl,v=cv(),nv=v*BALANCE.TAP_MUL,cc=cuc();
+  $('clb').textContent='Lv '+clv;
+  $('cli').textContent=`Lv ${clv} → ${fmt(v)}/tap`;
+  $('cni').textContent=clv<BALANCE.MAX_LV?`次: ${fmt(nv)}/tap`:'最大レベル';
+  const cb=$('cub');
+  if(clv>=BALANCE.MAX_LV){cb.textContent='MAX';cb.className='ub mx';}
+  else{cb.textContent=fmt(cc);cb.className='ub'+(G.cash>=cc?'':' ca');}
+
+  const fl=$('fl');if(!fl)return;
+  fl.innerHTML='';
+  const frag=document.createDocumentFragment();
+  FD.forEach(f=>{
+    // 防御的: 状態が欠けていても画面が止まらないようデフォルト補完
+    if(!G.fac[f.id])G.fac[f.id]={l:0,p:f.id==='malting'};
+    const s=G.fac[f.id],ul=isUL(f.id),p=s.p,l=s.l;
+    const inc=fi(f.id),uc=fuc(f.id),pc=fpc(f.id);
+    const card=document.createElement('div');
+    card.className='fc'+(ul?'':' lk');
+    let btnHtml='';
+    if(!ul){
+      btnHtml=`<div style="text-align:right"><div class="lv" style="color:var(--muted)">🔒</div><div style="font-size:10px;color:var(--muted);font-family:var(--fm);margin-top:4px;max-width:80px;text-align:right">${escapeHtml(f.ul)}</div></div>`;
+    }else if(!p){
+      btnHtml=`<div class="fr"><div class="lv">未購入</div><button class="ub${G.cash>=pc?'':' ca'}" data-act="pur" data-id="${f.id}">${fmt(pc)}</button></div>`;
+    }else{
+      const cls=l>=BALANCE.MAX_LV?' mx':(G.cash>=uc?'':' ca');
+      const txt=l>=BALANCE.MAX_LV?'MAX':fmt(uc);
+      const act=l>=BALANCE.MAX_LV?'':`data-act="upg" data-id="${f.id}"`;
+      btnHtml=`<div class="fr"><div class="lv">Lv ${l}</div><button class="ub${cls}" ${act}>${txt}</button></div>`;
+    }
+    card.innerHTML=`<div class="fi">${f.icon}</div><div style="flex:1"><div class="fn">${escapeHtml(f.name)}</div><div class="fs">${p&&l>0?'Lv '+l+'/'+BALANCE.MAX_LV:ul&&!p?'購入可能':'未解禁'}</div><div class="fic">${inc>0?fmt(inc)+'/h':'——'}</div></div>${btnHtml}`;
+    frag.appendChild(card);
+  });
+  fl.appendChild(frag);
+  $('til').textContent='収益: '+fmt(ti())+'/h';
+}
+
+function renc(){
+  const u=G.uw.length,tot=WL.length;
+  $('ecl').textContent=u+' / '+tot+' 解禁';
+  $('ep').style.width=(u/tot*100)+'%';
+  const fb=$('filterbar');
+  if(!fb.children.length){
+    WL_TYPES.forEach(t=>{
+      const b=document.createElement('button');
+      b.className='fb'+(t==='all'?' on':'');
+      b.textContent=WL_TYPE_LABELS[t];
+      b.dataset.filter=t;
+      b.addEventListener('click',()=>{
+        CF=t;
+        document.querySelectorAll('#filterbar .fb').forEach(x=>x.classList.remove('on'));
+        b.classList.add('on');
+        renc();
+      });
+      fb.appendChild(b);
+    });
+  }
+  const g=$('wg');g.innerHTML='';
+  const filt=CF==='all'?WL:WL.filter(w=>w.tp===CF);
+  const frag=document.createDocumentFragment();
+  filt.forEach(w=>{
+    const ul=G.uw.includes(w.id);
+    const autoOn=ul&&G.aw&&G.aw[w.id];
+    const c=document.createElement('div');
+    c.className='wc'+(ul?' ul':' lk');
+    c.dataset.id=w.id;
+    c.innerHTML=`<div class="wb">${ul?w.em+'🥃':'❓'}</div><div class="wn">${ul?escapeHtml(w.name):'???'}</div><div class="wr">${ul?escapeHtml(w.rg):'???'}</div><div class="ws">${ul?'★'.repeat(w.st)+'☆'.repeat(3-w.st):'???'}</div>${!ul?'<div class="wlk">🔒</div>':''}${autoOn?'<div style="position:absolute;top:3px;right:3px;background:var(--green);color:#fff;border-radius:3px;padding:1px 4px;font-size:9px;font-family:var(--fm);font-weight:600;line-height:1.2">🤖</div>':''}`;
+    frag.appendChild(c);
+  });
+  g.appendChild(frag);
+}
+
+function rprof(){
+  $('pca').textContent=fmt(G.cash);
+  $('pta').textContent=fmt(G.te);
+  $('pia').textContent=fmt(ti())+'/h';
+  $('pea').textContent=Math.round(G.uw.length/WL.length*100)+'%';
+  $('pda').textContent=G.dl+' / '+DL.length;
+  $('ptp').textContent=G.tt.toLocaleString();
+  $('ptitle').textContent=gTitle();
+
+  // ユーザー表示
+  const av=$('pAvatar');
+  // LIFFのプロフィール画像URLは通常 https のみだが、念のため javascript: 等を排除
+  if(LIFF_USER.picture&&/^https:\/\//i.test(LIFF_USER.picture)){
+    av.innerHTML=`<img src="${escapeHtml(LIFF_USER.picture)}" alt="">`;
+  }else{
+    av.innerHTML='🥃';
+  }
+  $('pName').textContent=LIFF_USER.name||'蒸留家';
+
+  const stat=$('pStat'),st=$('pStatTxt');
+  if(LIFF_USER.isLine){
+    stat.classList.add('line');
+    st.textContent='LINEログイン中';
+  }else{
+    stat.classList.remove('line');
+    st.textContent='ゲストモード（ローカル保存）';
+  }
+
+  // 称号
+  const tl=$('tlist');tl.innerHTML='';
+  if(!G.tl.length){
+    tl.innerHTML='<span style="color:var(--muted);font-family:var(--fm);font-size:12px">称号なし — プレイして獲得しよう</span>';
+  }else{
+    G.tl.forEach(id=>{
+      const t=TT.find(x=>x.id===id);
+      if(!t)return;
+      const b=document.createElement('div');
+      b.style.cssText='background:var(--bg3);border:1px solid var(--gold);border-radius:16px;padding:4px 10px;font-family:var(--fm);font-size:11px;color:var(--gold2)';
+      b.textContent='🏅 '+t.lb;
+      tl.appendChild(b);
+    });
+  }
+
+  // ストレージ情報（デバッグ・透明性のため）
+  $('storeInfo').textContent=`保存先: ${storageKey()}`;
+
+  // 共有ボタンの表示制御
+  $('btnShare').style.display = LIFF_USER.isLine ? 'block' : 'none';
+}
+
+function rall(){
+  // 各描画を独立に実行（1つが失敗しても他は描画される）
+  try{updHdr();}catch(e){console.warn('updHdr failed:',e);}
+  try{rdist();}catch(e){console.warn('rdist failed:',e);}
+  try{rbus();}catch(e){console.warn('rbus failed:',e);}
+  try{renc();}catch(e){console.warn('renc failed:',e);}
+  try{rprof();}catch(e){console.warn('rprof failed:',e);}
+}
+
+// ===== モーダル =====
+function openWhiskyModal(id){
+  const w=WL.find(x=>x.id===id),ul=G.uw.includes(id);
+  const p=wp(id),cc=Math.round(p*BALANCE.CRAFT_COST_RATIO),cnt=G.cw[id]||0;
+  const canCraft=G.fac['maturation']&&G.fac['maturation'].p;
+  let fl='';
+  if(ul){
+    Object.entries(w.fl).forEach(([k,v])=>{
+      fl+=`<div class="flr"><div class="fll">${escapeHtml(k)}</div><div class="flt"><div class="flf" style="width:${v}%"></div></div><div class="flv">${v}</div></div>`;
+    });
+  }
+  $('mc2').innerHTML=ul?`
+    <div style="font-size:36px;text-align:center;margin-bottom:8px">${w.em}🥃</div>
+    <div class="mt">${escapeHtml(w.name)}</div>
+    <div class="ms">${escapeHtml(w.rg)} | ${escapeHtml(w.tp)} | ${w.yr}年熟成</div>
+    <div style="background:var(--bg3);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:13px;color:var(--text2);line-height:1.6">${escapeHtml(w.ds)}</div>
+    <div style="font-family:var(--fm);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">フレーバー</div>
+    <div class="fl">${fl}</div>
+    <div class="msr"><div class="msl">樽ボーナス</div><div class="msv">×${w.ck}</div></div>
+    <div class="msr"><div class="msl">販売価格</div><div class="msv">${fmt(p)}/本</div></div>
+    <div class="msr"><div class="msl">製造コスト</div><div class="msv">${fmt(cc)}</div></div>
+    <div class="msr"><div class="msl">製造本数</div><div class="msv">${cnt.toLocaleString()}本</div></div>
+    <button class="cb" data-act="craft" data-id="${id}" ${!canCraft?'disabled':''}>
+      ${canCraft?'🥃 製造して販売 → +'+fmt(p-cc):'熟成庫を購入すると製造可能'}
+    </button>
+    ${(()=>{
+      const bot=G.fac&&G.fac.bottling;
+      const botOk=bot&&bot.p&&bot.l>0;
+      const autoOn=!!(G.aw&&G.aw[id]);
+      if(!botOk){
+        return `<div style="margin-top:10px;padding:10px;background:var(--bg3);border:1px dashed var(--border);border-radius:8px;font-family:var(--fm);font-size:11px;color:var(--muted);text-align:center">🤖 ボトリングラインを購入＆Lv1以上で自動販売を解禁</div>`;
+      }
+      const intervalMs=Math.max(500,5000/bot.l);
+      const ratePerHour=Math.round(3600000/intervalMs);
+      return `<button data-act="autosell" data-id="${id}" style="width:100%;margin-top:10px;padding:12px;background:${autoOn?'linear-gradient(135deg,#2a7a4a,#4a9a6a)':'var(--bg3)'};border:1px solid ${autoOn?'var(--green)':'var(--border)'};border-radius:8px;color:${autoOn?'#fff':'var(--text2)'};font-family:var(--fm);font-size:13px;font-weight:600;cursor:pointer;letter-spacing:.04em">
+        ${autoOn?'🤖 自動販売: ON':'⏸ 自動販売: OFF'}
+      </button>
+      <div style="font-family:var(--fm);font-size:10px;color:var(--muted);text-align:center;margin-top:6px">販売間隔 ${(intervalMs/1000).toFixed(1)}秒（最大 ${ratePerHour.toLocaleString()}本/h）／ ボトリングLv${bot.l}</div>`;
+    })()}`
+  :(()=>{
+    const ui=getUnlockInfo(id);
+    const condBlock=ui.secret
+      ? `<div style="font-family:var(--fm);font-size:11px;color:var(--gold);letter-spacing:.12em;margin-top:14px">★ シークレット銘柄 ★</div>
+         <div style="font-family:var(--fb);font-size:13px;color:var(--muted);margin-top:6px">解禁条件は非公開です</div>`
+      : `<div style="font-family:var(--fm);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-top:14px">解禁条件</div>
+         <div style="font-family:var(--fb);font-size:14px;color:var(--gold2);margin-top:4px;font-weight:600">${escapeHtml(ui.label)}</div>`;
+    return `<div style="font-size:36px;text-align:center;margin-bottom:8px">${ui.secret?'🌑🥃':'❓🥃'}</div>
+      <div class="mt" style="filter:blur(6px)">???</div>
+      <div class="ms">未解禁</div>
+      <div style="text-align:center;padding:24px 0">
+        <div style="font-size:42px">${ui.secret?'🗝️':'🔒'}</div>
+        ${condBlock}
+      </div>`;
+  })();
+  $('mo').classList.remove('h');
+}
+
+function openUpgModal(id){
+  const f=FD.find(x=>x.id===id);
+  const s=G.fac[id];const l=s.l;
+  if(l>=BALANCE.MAX_LV){toast('最大レベルです');return;}
+  const nextLv=l+1;
+  const cost=fuc(id);
+  const curInc=fi(id);
+  const nextInc=f.bi*dm()*Math.pow(BALANCE.FAC_INC_MUL,nextLv);
+  const upg=FAC_UPG[id][l];
+  const canAfford=G.cash>=cost;
+  $('mc2').innerHTML=`
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+      <div style="font-size:36px">${f.icon}</div>
+      <div>
+        <div style="font-family:var(--fd);font-size:20px;font-weight:900;color:var(--gold2)">${escapeHtml(f.name)}</div>
+        <div style="font-family:var(--fm);font-size:12px;color:var(--muted);margin-top:2px">
+          <span style="color:var(--text2)">Lv ${l}</span>
+          <span style="color:var(--muted);margin:0 6px">→</span>
+          <span style="color:var(--gold2);font-weight:600">Lv ${nextLv}</span>
+        </div>
+      </div>
+    </div>
+    <div style="background:linear-gradient(135deg,var(--bg3),var(--panel));border:1px solid var(--gold);border-radius:10px;padding:14px;margin-bottom:14px">
+      <div style="font-family:var(--fm);font-size:10px;color:var(--gold);letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px">🔧 追加される設備</div>
+      <div style="font-family:var(--fd);font-size:16px;font-weight:700;color:var(--cream);margin-bottom:8px">${escapeHtml(upg.eq)}</div>
+      <div style="font-size:13px;color:var(--text2);line-height:1.65;font-family:var(--fb)">${escapeHtml(upg.desc)}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px">
+        <div style="font-family:var(--fm);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">現在の収益/h</div>
+        <div style="font-family:var(--fm);font-size:14px;color:var(--text2);font-weight:600;margin-top:4px">${l===0?'——':fmt(curInc)}</div>
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--green);border-radius:8px;padding:10px">
+        <div style="font-family:var(--fm);font-size:10px;color:var(--green);text-transform:uppercase;letter-spacing:.08em">強化後の収益/h</div>
+        <div style="font-family:var(--fm);font-size:14px;color:var(--green);font-weight:600;margin-top:4px">${fmt(nextInc)}</div>
+      </div>
+    </div>
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div style="font-family:var(--fm);font-size:12px;color:var(--muted)">アップグレード費用</div>
+      <div style="font-family:var(--fm);font-size:16px;font-weight:600;color:${canAfford?'var(--gold2)':'var(--red)'}">${fmt(cost)}</div>
+    </div>
+    ${!canAfford?`<div style="text-align:center;font-family:var(--fm);font-size:12px;color:var(--red);padding:8px;background:rgba(192,64,64,.1);border-radius:8px;margin-bottom:8px">資金が ${fmt(cost-G.cash)} 足りません</div>`:''}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <button class="btn-cancel" data-act="closeM">キャンセル</button>
+      <button data-act="upgFac" data-id="${id}" ${!canAfford?'disabled':''} style="padding:13px;background:${canAfford?'linear-gradient(135deg,var(--amber),var(--gold))':'var(--bg3)'};border:none;border-radius:10px;font-family:var(--fd);font-size:15px;font-weight:700;color:${canAfford?'#1a1208':'var(--muted)'};cursor:${canAfford?'pointer':'default'};${canAfford?'':'border:1px solid var(--border)'}">
+        ${canAfford?'✓ 強化する':'資金不足'}
+      </button>
+    </div>
+  `;
+  $('mo').classList.remove('h');
+}
+
+function closeM(){$('mo').classList.add('h');}
+
+// ===== 確認ダイアログ =====
+let confirmCb=null;
+function showConfirm({title,msg,icon='⚠️',danger=true,onYes,yesLabel}){
+  $('confirmIcon').textContent=icon;
+  $('confirmTitle').textContent=title;
+  $('confirmMsg').innerHTML=msg;
+  $('confirmBox').className='confirm-box'+(danger?' danger':'');
+  const yes=$('confirmYes');
+  yes.textContent=yesLabel||(danger?'実行':'OK');
+  yes.className=danger?'btn-confirm':'btn-ok';
+  confirmCb=onYes;
+  $('confirmDlg').classList.add('on');
+}
+function hideConfirm(){$('confirmDlg').classList.remove('on');confirmCb=null;}
+
+// ===== セーブ エクスポート/インポート =====
+// セーブIO用の汎用モーダル（prompt/clipboardに依存せず確実に動く）
+function exportSave(){
+  let data;
+  try{
+    data=btoa(unescape(encodeURIComponent(JSON.stringify(G))));
+  }catch(e){toast('エクスポート失敗: '+e.message,3000);return;}
+  $('mc2').innerHTML=`
+    <div class="mt">📤 セーブのエクスポート</div>
+    <div class="ms">下のテキストをコピーして安全に保管してください</div>
+    <textarea id="ioText" readonly style="width:100%;min-height:120px;padding:10px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--fm);font-size:11px;resize:vertical;word-break:break-all">${escapeHtml(data)}</textarea>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px">
+      <button class="btn-cancel" data-act="closeM">閉じる</button>
+      <button data-act="ioCopy" style="padding:13px;background:linear-gradient(135deg,var(--amber),var(--gold));border:none;border-radius:10px;font-family:var(--fd);font-size:15px;font-weight:700;color:#1a1208;cursor:pointer">📋 コピー</button>
+    </div>
+  `;
+  $('mo').classList.remove('h');
+  // 自動選択（ユーザーが手動コピーしやすく）
+  setTimeout(()=>{const ta=$('ioText');if(ta){ta.focus();ta.select();}},50);
+}
+
+function importSave(){
+  $('mc2').innerHTML=`
+    <div class="mt">📥 セーブのインポート</div>
+    <div class="ms">エクスポートしたセーブ文字列を貼り付けてください</div>
+    <textarea id="ioText" placeholder="ここに貼り付け..." style="width:100%;min-height:120px;padding:10px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--fm);font-size:11px;resize:vertical;word-break:break-all"></textarea>
+    <div style="font-family:var(--fm);font-size:10px;color:var(--red);margin-top:8px">⚠ 現在のデータが上書きされます</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
+      <button class="btn-cancel" data-act="closeM">キャンセル</button>
+      <button data-act="ioApply" style="padding:13px;background:var(--red);border:none;border-radius:10px;color:#fff;font-family:var(--fd);font-size:15px;font-weight:700;cursor:pointer">上書きインポート</button>
+    </div>
+  `;
+  $('mo').classList.remove('h');
+  setTimeout(()=>{const ta=$('ioText');if(ta)ta.focus();},50);
+}
+
+// クリップボードコピー（複数フォールバック）
+function ioCopyAction(){
+  const ta=$('ioText');
+  if(!ta){toast('コピー失敗',2000);return;}
+  const text=ta.value;
+  // モダンAPI
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(
+      ()=>toast('📋 コピーしました',2000),
+      ()=>fallbackCopy(ta)
+    );
+  }else{
+    fallbackCopy(ta);
+  }
+}
+function fallbackCopy(ta){
+  // 旧式: textarea を選択して execCommand
+  try{
+    ta.focus();ta.select();ta.setSelectionRange(0,99999);
+    const ok=document.execCommand('copy');
+    toast(ok?'📋 コピーしました':'手動でコピーしてください',2500);
+  }catch(e){toast('手動でコピーしてください',2500);}
+}
+
+// インポート適用
+function ioApplyAction(){
+  const ta=$('ioText');
+  if(!ta||!ta.value.trim()){toast('セーブ文字列が空です',2000);return;}
+  let obj;
+  try{
+    obj=JSON.parse(decodeURIComponent(escape(atob(ta.value.trim()))));
+  }catch(e){toast('インポート失敗: 形式が不正です',3000);return;}
+  G=sanitize(migrate(obj));
+  save();rall();closeM();
+  toast('✓ インポートしました',2500);
+}
+
+// ===== LINE 共有 =====
+// ===== 検証モード（受動収益100倍トグル） =====
+// 表示対象判定: ゲスト(=Claude/ローカル) または OWNER_LINE_IDS に含まれるLINEユーザーのみ
+function isDebugUser(){
+  if(!LIFF_USER||!LIFF_USER.isLine)return true; // 未ログイン・ゲスト
+  return Array.isArray(OWNER_LINE_IDS)&&OWNER_LINE_IDS.includes(LIFF_USER.id);
+}
+function syncDebugBtn(){
+  const btn=$('btnDebug');
+  if(!btn)return;
+  // 表示権限がなければ完全に非表示。一般ユーザーには検証ボタンの存在自体が見えない
+  if(!isDebugUser()){
+    btn.style.display='none';
+    if(G.dbgMul&&G.dbgMul>1){G.dbgMul=1;save();} // 万一ON状態のセーブが渡ってきても強制OFF
+    return;
+  }
+  btn.style.display='';
+  const on=(G.dbgMul||1)>1;
+  btn.textContent=on?`🧪 検証モード: ON (×${G.dbgMul})`:'🧪 検証モード: OFF';
+  btn.style.borderColor=on?'var(--gold)':'var(--border)';
+  btn.style.color=on?'var(--gold2)':'var(--text2)';
+  btn.style.borderStyle=on?'solid':'dashed';
+}
+function toggleDebug(){
+  G.dbgMul=(G.dbgMul||1)>1?1:100;
+  syncDebugBtn();
+  save();
+  // 表示を即時反映
+  rdistLight();updHdr();
+  const at=document.querySelector('.tab.on');
+  if(at&&at.id==='tb')$('til').textContent='収益: '+fmt(ti())+'/h';
+  toast(G.dbgMul>1?`検証モード ON: 受動収益 ×${G.dbgMul}`:'検証モード OFF',2500);
+}
+
+function shareToLine(){
+  if(!LIFF_USER.isLine||typeof liff==='undefined')return;
+  if(!liff.isApiAvailable||!liff.isApiAvailable('shareTargetPicker')){
+    toast('共有機能は利用できません',3000);
+    return;
+  }
+  const msg=`🥃 Whisky Empire プレイ中!\n蒸留所Lv: ${G.dl}/${DL.length}\n総売上: ${fmt(G.te)}\n図鑑: ${G.uw.length}/${WL.length}\n称号: ${gTitle()}`;
+  liff.shareTargetPicker([{type:'text',text:msg}])
+    .then(()=>toast('共有しました',2000))
+    .catch(e=>toast('共有失敗: '+e.message,3000));
+}
+
+// ===== トースト =====
+let toastTimer;
+function toast(msg,dur=2200){
+  const e=$('toast');
+  e.textContent=msg;
+  e.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>e.classList.remove('on'),dur);
+}
+
+// ===== タブ切替 =====
+function switchTab(id){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  document.querySelectorAll('#nav .nb').forEach(b=>b.classList.remove('on'));
+  $(id).classList.add('on');
+  document.querySelector(`#nav .nb[data-tab="${id}"]`).classList.add('on');
+  if(id==='te')renc();
+  if(id==='tp')rprof();
+  if(id==='tb')rbus();
+  if(id==='td')rdist();
+}
+
+// ===== イベントバインド =====
+function bindEvents(){
+  document.querySelectorAll('#nav .nb').forEach(btn=>{
+    btn.addEventListener('click',()=>switchTab(btn.dataset.tab));
+  });
+
+  const bb=$('bb');
+  if(window.PointerEvent){
+    bb.addEventListener('pointerdown',e=>{e.preventDefault();tap(e);});
+  }else{
+    bb.addEventListener('click',tap);
+  }
+
+  $('cub').addEventListener('click',upgClick);
+  $('dub').addEventListener('click',upgDist);
+
+  $('fl').addEventListener('click',e=>{
+    const b=e.target.closest('button[data-act]');
+    if(!b)return;
+    const act=b.dataset.act,id=b.dataset.id;
+    if(act==='pur')purFac(id);
+    else if(act==='upg')openUpgModal(id);
+  });
+
+  $('wg').addEventListener('click',e=>{
+    const c=e.target.closest('.wc');
+    if(c&&c.dataset.id)openWhiskyModal(c.dataset.id);
+  });
+
+  $('mo').addEventListener('click',e=>{
+    if(e.target===$('mo'))return closeM();
+    const b=e.target.closest('[data-act]');
+    if(!b)return;
+    const act=b.dataset.act,id=b.dataset.id;
+    if(act==='craft')craft(id);
+    else if(act==='upgFac')upgFac(id);
+    else if(act==='closeM')closeM();
+    else if(act==='ioCopy')ioCopyAction();
+    else if(act==='ioApply')ioApplyAction();
+    else if(act==='autosell')toggleAutoSell(id);
+  });
+  $('moClose').addEventListener('click',closeM);
+
+  $('btnExport').addEventListener('click',exportSave);
+  $('btnImport').addEventListener('click',importSave);
+  $('btnShare').addEventListener('click',shareToLine);
+  $('btnDebug').addEventListener('click',toggleDebug);
+  $('btnReset').addEventListener('click',()=>{
+    showConfirm({
+      title:'データをリセット',
+      msg:'このユーザーのすべての進行データ（残高・施設・図鑑）が完全に削除されます。<br>この操作は取り消せません。',
+      icon:'⚠️',danger:true,yesLabel:'リセット',
+      onYes:()=>{
+        const ok=clearStorage();
+        if(!ok){toast('リセットに失敗しました',3000);return;}
+        // メモリ上の状態も初期化
+        G=defState();
+        // 画面も初期状態に戻して保存
+        save();
+        rall();
+        syncDebugBtn();
+        toast('データをリセットしました',2500);
+      }
+    });
+  });
+
+  $('confirmYes').addEventListener('click',()=>{
+    const cb=confirmCb;hideConfirm();
+    if(typeof cb==='function')cb();
+  });
+  $('confirmNo').addEventListener('click',hideConfirm);
+}
+
+// ===== LIFF 初期化（タイムアウト付き） =====
+async function initLiff(){
+  // LIFF_ID 未設定 → 即ゲストモード
+  if(!LIFF_ID||LIFF_ID==='__LIFF_ID__'){
+    LIFF_USER={id:null,name:null,picture:null,isLine:false};
+    return;
+  }
+  // SDK の読み込み完了を最大2秒待機
+  const sdkReady = await new Promise(resolve=>{
+    if(typeof liff!=='undefined')return resolve(true);
+    let waited=0;
+    const iv=setInterval(()=>{
+      waited+=100;
+      if(typeof liff!=='undefined'){clearInterval(iv);resolve(true);}
+      else if(waited>=2000){clearInterval(iv);resolve(false);}
+    },100);
+  });
+  if(!sdkReady){
+    console.warn('LIFF SDK not loaded within 2s, fallback to guest');
+    LIFF_USER={id:null,name:null,picture:null,isLine:false};
+    return;
+  }
+  try{
+    $('ldm').textContent='LINE認証中…';
+    await liff.init({liffId:LIFF_ID});
+    if(!liff.isLoggedIn()){
+      liff.login();
+      return; // login() はリダイレクトを起こす
+    }
+    const profile=await liff.getProfile();
+    LIFF_USER={
+      id:profile.userId,
+      name:profile.displayName,
+      picture:profile.pictureUrl||null,
+      isLine:true
+    };
+  }catch(e){
+    console.warn('LIFF init failed, fallback to guest:',e);
+    LIFF_USER={id:null,name:null,picture:null,isLine:false};
+  }
+}
+
+// ===== ローディング解除（多重呼び出し安全） =====
+let _loadingHidden=false;
+function hideLoading(errMsg){
+  if(_loadingHidden)return;
+  _loadingHidden=true;
+  const ld=$('ld');
+  if(ld){
+    if(errMsg){
+      $('ldm').textContent='エラー: '+errMsg+' (ゲームを表示します)';
+      // エラー時は3秒見せてから消す
+      setTimeout(()=>{ld.style.opacity='0';setTimeout(()=>{ld.style.display='none';},500);},3000);
+    }else{
+      ld.style.opacity='0';
+      setTimeout(()=>{ld.style.display='none';},500);
+    }
+  }
+  const app=$('app');
+  if(app)app.style.display='flex';
+}
+
+// ===== ライフサイクル =====
+async function init(){
+  try{
+    bindEvents();
+    await initLiff();
+    $('ldm').textContent='ゲームデータ読込中…';
+
+    load();
+    offline();
+    chkUnlocks();
+    chkT();
+    rall();
+    syncDebugBtn(); // 起動時にボタン状態を保存値と同期
+
+    // バナー（ゲストモード時に注意喚起）
+    if(!LIFF_USER.isLine){
+      const lb=$('loginBanner');
+      if(lb)lb.innerHTML=`<div class="banner"><span class="b-ic">ℹ️</span><span>ゲストモードで動作中。LINEからこのアプリを開くと自動でユーザー保存されます。</span></div>`;
+    }
+
+    // 受動収益の累積
+    setInterval(()=>{
+      const inc=ti()*(BALANCE.TICK_MS/3600000);
+      if(inc>0){G.cash+=inc;G.te+=inc;}
+    },BALANCE.TICK_MS);
+
+    // 軽量UI更新（残高表示・ボタン活性・解禁検知）
+    setInterval(()=>{
+      updHdr();
+      rdistLight();
+      rbusUpdate();      // 残高が閾値を超えた瞬間にボタン色を反転
+      chkUnlocks();      // 受動収益による解禁を検知
+      const at=document.querySelector('.tab.on');
+      if(at){
+        if(at.id==='tb')$('til').textContent='収益: '+fmt(ti())+'/h';
+        if(at.id==='tp')rprof();
+      }
+    },BALANCE.UI_REFRESH_MS);
+
+    // 自動販売の処理ループ（500msごとにチェック、銘柄ごとの間隔は autoSellInterval() で管理）
+    setInterval(autoSellTick,500);
+
+    // 定期セーブ
+    setInterval(save,BALANCE.SAVE_INTERVAL_MS);
+
+    hideLoading();
+  }catch(e){
+    console.error('init failed:',e);
+    hideLoading(String(e.message||e));
+  }
+}
+
+// 安全策: 8秒経過後も読み込み中なら強制的に画面表示
+setTimeout(()=>{
+  if(!_loadingHidden){
+    console.warn('init taking too long, forcing UI');
+    hideLoading('起動タイムアウト');
+  }
+},8000);
+
+// DOM 準備完了次第、即座に init を呼ぶ（window.load を待たない）
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded',init);
+}else{
+  init();
+}
+window.addEventListener('beforeunload',save);
+window.addEventListener('pagehide',save);
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){save();}
+  else{
+    // 復帰時はオフライン補正→解禁チェック→アクティブタブをフル再描画
+    offline();
+    chkUnlocks();
+    rall();
+  }
+});
+</script>
+</body>
+</html>
