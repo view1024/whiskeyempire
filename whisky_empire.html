@@ -725,13 +725,18 @@ function load(){
 }
 
 function save(){
+  // ★重要: G.ls はここで更新しない。
+  // 30秒間隔のsaveがバックグラウンド中も throttle されながら発火するため、
+  // G.ls=Date.now() を入れると「直前まで能動的だった時刻」が常に上書きされ、
+  // 復帰時の offline() の差分が0近くになってしまう（=オフライン収益ゼロのバグ）
   try{
-    G.ls=Date.now();
     localStorage.setItem(storageKey(),JSON.stringify(G));
   }catch(e){
     toast('セーブ失敗: '+e.message,3000);
   }
 }
+// 能動状態にいることを記録（offlineからの復帰計算の基準点を「今」に更新）
+function markActive(){G.ls=Date.now();}
 
 function clearStorage(){
   try{localStorage.removeItem(storageKey());return true;}
@@ -884,6 +889,18 @@ function craft(id){
 // ボトリングライン購入後に有効。レベルに応じて販売間隔が短縮される
 // 間隔(ms) = max(500, 5000 / max(1, ボトリングLv))
 //   Lv1: 5000ms (5秒に1本) → Lv5: 1000ms → Lv10: 500ms
+// 銘柄別の自動販売解禁条件（星評価ごとにボトリングライン要求Lvを段階化）
+// 1星: Lv2、2星: Lv5、3星: Lv8。これにより上位銘柄ほど後半までAuto販売できず収益爆発を抑制
+const AUTOSELL_BOT_REQ={1:2,2:5,3:8};
+function autoSellRequiredBotLv(star){return AUTOSELL_BOT_REQ[star]||10;}
+function canAutoSell(whiskyId){
+  const w=WL.find(x=>x.id===whiskyId);
+  if(!w)return false;
+  const bot=G.fac&&G.fac.bottling;
+  if(!bot||!bot.p||bot.l===0)return false;
+  return bot.l>=autoSellRequiredBotLv(w.st);
+}
+
 function autoSellInterval(){
   const bot=G.fac&&G.fac.bottling;
   if(!bot||!bot.p||bot.l===0)return Infinity;
@@ -900,6 +917,7 @@ function autoSellTick(){
     if(!G.aw[id])return;
     if(!G.uw.includes(id))return;
     if(!WL.find(w=>w.id===id))return; // 未知IDの保険
+    if(!canAutoSell(id))return; // 解禁条件未達ならスキップ（ボトリングLvが必要レベルに未達）
     if((now-(lastAutoSell[id]||0))<interval)return;
     const p=wp(id);
     const cc=Math.round(p*BALANCE.CRAFT_COST_RATIO);
@@ -937,6 +955,44 @@ function chkT(){
   });
 }
 
+// ===== 施設拡張履歴モーダル =====
+// 各施設の過去のレベルアップテキスト(FAC_UPG)を後から参照する図鑑機能
+function openHistModal(id){
+  const f=FD.find(x=>x.id===id);
+  if(!f)return;
+  const s=G.fac[id]||{l:0,p:false};
+  const upgrades=FAC_UPG[id]||[];
+  let body='';
+  if(s.l===0){
+    body=`<div style="text-align:center;padding:30px 16px;color:var(--muted);font-family:var(--fm);font-size:12px">まだ何も導入していません。<br>レベルアップで設備が追加され、<br>ここに導入履歴が記録されます。</div>`;
+  }else{
+    for(let i=0;i<s.l&&i<upgrades.length;i++){
+      const u=upgrades[i];
+      body+=`<div style="padding:12px 14px;background:var(--bg3);border:1px solid var(--border);border-left:3px solid var(--gold);border-radius:8px;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <span style="font-family:var(--fm);font-size:10px;background:var(--gold);color:#1a1208;border-radius:4px;padding:2px 8px;font-weight:700;letter-spacing:.06em">Lv ${i+1}</span>
+          <span style="font-family:var(--fd);font-size:14px;color:var(--cream);font-weight:700;line-height:1.2">${escapeHtml(u.eq)}</span>
+        </div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.65;font-family:var(--fb)">${escapeHtml(u.desc)}</div>
+      </div>`;
+    }
+    if(s.l<BALANCE.MAX_LV){
+      body+=`<div style="text-align:center;padding:14px;color:var(--muted);font-family:var(--fm);font-size:11px;border:1px dashed var(--border);border-radius:8px;margin-top:6px">⏳ Lv${s.l+1} 以降の設備は未導入<br>事業タブからアップグレードで解禁</div>`;
+    }
+  }
+  $('mc2').innerHTML=`
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+      <span style="font-size:32px">${f.icon}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-family:var(--fd);font-size:18px;color:var(--gold2);font-weight:900;line-height:1.2">${escapeHtml(f.name)} 導入履歴</div>
+        <div style="font-family:var(--fm);font-size:11px;color:var(--muted);margin-top:3px">Lv ${s.l} / ${BALANCE.MAX_LV} ・ これまでに導入した設備</div>
+      </div>
+    </div>
+    ${body}
+  `;
+  $('mo').classList.remove('h');
+}
+
 function chkUnlocks(){
   let imperialReady=false;
   UNLOCK_REQ.forEach(u=>{
@@ -957,13 +1013,54 @@ function offline(){
   // G.ls を関数の冒頭で即時更新し、再呼び出し時の二重補正を防止
   // （visibilitychange/init/復帰イベント等で複数回トリガーされる可能性に備える）
   const now=Date.now();
-  const hours=Math.min((now-G.ls)/3600000,BALANCE.OFFLINE_CAP_H);
+  const elapsedMs=now-G.ls;
+  const hours=Math.min(elapsedMs/3600000,BALANCE.OFFLINE_CAP_H);
   G.ls=now;
   if(hours<=0)return;
-  const earned=ti()*hours;
-  if(earned>0&&isFinite(earned)){
-    G.cash+=earned;G.te+=earned;
-    toast(`💤 オフライン収益: +${fmt(earned)} (${hours.toFixed(1)}h)`,4000);
+
+  // 1) 施設受動収益
+  const facEarned=ti()*hours;
+  let totalEarned=isFinite(facEarned)&&facEarned>0?facEarned:0;
+
+  // 2) 自動販売収益（ボトリング購入＆ON銘柄のみ、現実残高で支払い可能な範囲）
+  let autoSalesCount=0;
+  const interval=autoSellInterval();
+  const cappedMs=hours*3600000; // 8時間キャップ後のミリ秒
+  if(isFinite(interval)&&interval>0&&G.aw){
+    // 残高は連続的に推移するため、各銘柄の販売数を独立に評価
+    // (簡略化: 期間中に発生し得る最大売数。残高不足でない限り自動販売は赤字にならないため概ね正確)
+    Object.keys(G.aw).forEach(id=>{
+      if(!G.aw[id])return;
+      if(!G.uw.includes(id))return;
+      if(!WL.find(w=>w.id===id))return;
+      if(!canAutoSell(id))return; // 銘柄ごとの解禁条件をオフライン補正にも適用
+      const p=wp(id);
+      const cc=Math.round(p*BALANCE.CRAFT_COST_RATIO);
+      if(!isFinite(p)||p<=0)return;
+      const netPerSale=p-cc;
+      if(netPerSale<=0)return;
+      // 期間中の最大販売数
+      const maxSales=Math.floor(cappedMs/interval);
+      if(maxSales<=0)return;
+      // 残高制約: 現キャッシュ + 施設収益 + これまでの自動販売純益で何回まで賄えるか
+      // 厳密には連立だが、保守側に倒すため以下で評価
+      const fundsAvail=G.cash+totalEarned;
+      const sustainableSales=netPerSale>0?maxSales:Math.floor(fundsAvail/cc);
+      const salesCount=Math.min(maxSales,sustainableSales);
+      if(salesCount<=0)return;
+      const earnedHere=netPerSale*salesCount;
+      totalEarned+=earnedHere;
+      G.cw[id]=(G.cw[id]||0)+salesCount;
+      lastAutoSell[id]=now; // 復帰直後の即連発を防止
+      autoSalesCount+=salesCount;
+    });
+  }
+
+  if(totalEarned>0&&isFinite(totalEarned)){
+    G.cash+=totalEarned;G.te+=totalEarned;
+    let msg=`💤 オフライン収益: +${fmt(totalEarned)} (${hours.toFixed(1)}h)`;
+    if(autoSalesCount>0)msg+=` / 自動販売 ${autoSalesCount.toLocaleString()}本`;
+    toast(msg,4500);
   }
 }
 
@@ -1066,7 +1163,9 @@ function rbus(){
       const act=l>=BALANCE.MAX_LV?'':`data-act="upg" data-id="${f.id}"`;
       btnHtml=`<div class="fr"><div class="lv">Lv ${l}</div><button class="ub${cls}" ${act}>${txt}</button></div>`;
     }
-    card.innerHTML=`<div class="fi">${f.icon}</div><div style="flex:1"><div class="fn">${escapeHtml(f.name)}</div><div class="fs">${p&&l>0?'Lv '+l+'/'+BALANCE.MAX_LV:ul&&!p?'購入可能':'未解禁'}</div><div class="fic">${inc>0?fmt(inc)+'/h':'——'}</div></div>${btnHtml}`;
+    // Lv1以上の購入済み施設のみ「履歴」ボタンを表示
+    const histBtn=(p&&l>0)?` <button data-act="hist" data-id="${f.id}" style="background:none;border:none;color:var(--gold);cursor:pointer;padding:0 0 0 4px;font-size:13px;vertical-align:middle" title="導入履歴を見る">📖</button>`:'';
+    card.innerHTML=`<div class="fi">${f.icon}</div><div style="flex:1;min-width:0"><div class="fn">${escapeHtml(f.name)}</div><div class="fs">${p&&l>0?'Lv '+l+'/'+BALANCE.MAX_LV:ul&&!p?'購入可能':'未解禁'}</div><div class="fic">${inc>0?fmt(inc)+'/h':'——'}${histBtn}</div></div>${btnHtml}`;
     frag.appendChild(card);
   });
   fl.appendChild(frag);
@@ -1196,8 +1295,12 @@ function openWhiskyModal(id){
       const bot=G.fac&&G.fac.bottling;
       const botOk=bot&&bot.p&&bot.l>0;
       const autoOn=!!(G.aw&&G.aw[id]);
+      const reqLv=autoSellRequiredBotLv(w.st);
       if(!botOk){
-        return `<div style="margin-top:10px;padding:10px;background:var(--bg3);border:1px dashed var(--border);border-radius:8px;font-family:var(--fm);font-size:11px;color:var(--muted);text-align:center">🤖 ボトリングラインを購入＆Lv1以上で自動販売を解禁</div>`;
+        return `<div style="margin-top:10px;padding:10px;background:var(--bg3);border:1px dashed var(--border);border-radius:8px;font-family:var(--fm);font-size:11px;color:var(--muted);text-align:center">🤖 ボトリングラインを購入＆Lv1以上で自動販売解禁</div>`;
+      }
+      if(!canAutoSell(id)){
+        return `<div style="margin-top:10px;padding:10px;background:var(--bg3);border:1px dashed var(--border);border-radius:8px;font-family:var(--fm);font-size:11px;color:var(--muted);text-align:center">🤖 自動販売は ボトリングLv${reqLv} で解禁<br><span style="color:var(--text2)">現在 Lv${bot.l} ／ ${'★'.repeat(w.st)}${'☆'.repeat(3-w.st)} 銘柄</span></div>`;
       }
       const intervalMs=Math.max(500,5000/bot.l);
       const ratePerHour=Math.round(3600000/intervalMs);
@@ -1456,6 +1559,7 @@ function bindEvents(){
     const act=b.dataset.act,id=b.dataset.id;
     if(act==='pur')purFac(id);
     else if(act==='upg')openUpgModal(id);
+    else if(act==='hist')openHistModal(id);
   });
 
   $('wg').addEventListener('click',e=>{
@@ -1589,14 +1693,17 @@ async function init(){
       if(lb)lb.innerHTML=`<div class="banner"><span class="b-ic">ℹ️</span><span>ゲストモードで動作中。LINEからこのアプリを開くと自動でユーザー保存されます。</span></div>`;
     }
 
-    // 受動収益の累積
+    // 受動収益の累積（フォアグラウンド時のみ動作。G.ls もここで更新する）
     setInterval(()=>{
+      if(document.hidden)return; // バックグラウンド中はスキップ
       const inc=ti()*(BALANCE.TICK_MS/3600000);
       if(inc>0){G.cash+=inc;G.te+=inc;}
+      markActive(); // 能動的にプレイ中であることを記録
     },BALANCE.TICK_MS);
 
-    // 軽量UI更新（残高表示・ボタン活性・解禁検知）
+    // 軽量UI更新（フォアグラウンド時のみ）
     setInterval(()=>{
+      if(document.hidden)return;
       updHdr();
       rdistLight();
       rbusUpdate();      // 残高が閾値を超えた瞬間にボタン色を反転
@@ -1608,10 +1715,13 @@ async function init(){
       }
     },BALANCE.UI_REFRESH_MS);
 
-    // 自動販売の処理ループ（500msごとにチェック、銘柄ごとの間隔は autoSellInterval() で管理）
-    setInterval(autoSellTick,500);
+    // 自動販売の処理ループ（フォアグラウンド時のみ。バックグラウンド分は offline() で補正）
+    setInterval(()=>{
+      if(document.hidden)return;
+      autoSellTick();
+    },500);
 
-    // 定期セーブ
+    // 定期セーブ（永続化のみ。G.ls は更新しない）
     setInterval(save,BALANCE.SAVE_INTERVAL_MS);
 
     hideLoading();
@@ -1635,11 +1745,14 @@ if(document.readyState==='loading'){
 }else{
   init();
 }
-window.addEventListener('beforeunload',save);
-window.addEventListener('pagehide',save);
+// バックグラウンド遷移直前に「最終能動時刻」を確定させてから永続化
+window.addEventListener('beforeunload',()=>{markActive();save();});
+window.addEventListener('pagehide',()=>{markActive();save();});
 document.addEventListener('visibilitychange',()=>{
-  if(document.hidden){save();}
-  else{
+  if(document.hidden){
+    markActive(); // この瞬間を「最終能動時刻」として記録
+    save();
+  }else{
     // 復帰時はオフライン補正→解禁チェック→アクティブタブをフル再描画
     offline();
     chkUnlocks();
