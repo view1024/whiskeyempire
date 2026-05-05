@@ -47,8 +47,8 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--fb);height:10
 .cash-val{font-family:var(--fm);font-size:18px;font-weight:600;color:var(--gold2);line-height:1.2}
 #content{flex:1;position:relative;overflow:hidden}
 #nav{flex-shrink:0;display:flex;background:var(--bg2);border-top:1px solid var(--border);padding-bottom:var(--sb);z-index:10}
-.nb{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 4px;background:none;border:none;cursor:pointer;color:var(--muted);font-family:var(--fb);font-size:10px;letter-spacing:.04em;transition:color .2s;position:relative;-webkit-user-select:none;user-select:none}
-.nb .ic{font-size:22px;line-height:1;pointer-events:none}
+.nb{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:11px 4px;background:none;border:none;cursor:pointer;color:var(--muted);font-family:var(--fb);font-size:12px;letter-spacing:.04em;transition:color .2s;position:relative;-webkit-user-select:none;user-select:none}
+.nb .ic{font-size:24px;line-height:1;pointer-events:none}
 .nb span{pointer-events:none}
 .nb.on{color:var(--gold2)}
 .nb.on::before{content:'';position:absolute;top:0;left:20%;right:20%;height:2px;background:var(--gold2);border-radius:0 0 2px 2px}
@@ -58,36 +58,36 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--fb);height:10
 #td.on{display:flex;flex-direction:column;height:100%;padding:8px 12px 10px;gap:6px;overflow:hidden}
 .sr{display:grid;grid-template-columns:1fr 1fr;gap:5px;width:100%;flex-shrink:0}
 .sc{background:var(--panel);border:1px solid var(--border);border-radius:7px;padding:6px 9px}
-.sc .sl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-family:var(--fm)}
-.sc .sv{font-family:var(--fm);font-size:13px;color:var(--gold2);font-weight:600;margin-top:1px}
+.sc .sl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-family:var(--fm)}
+.sc .sv{font-family:var(--fm);font-size:15px;color:var(--gold2);font-weight:600;margin-top:2px}
 .barrel-section{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:0;gap:6px}
 .barrel-area{width:min(70vw,250px);aspect-ratio:1;max-height:100%;cursor:pointer;flex-shrink:1;touch-action:manipulation;position:relative}
 .barrel-area:active svg{transform:scale(.95)}
 .barrel-area svg{transition:transform .08s;filter:drop-shadow(0 10px 24px rgba(0,0,0,.6));width:100%;height:100%;display:block}
-.cl{font-family:var(--fb);font-size:12px;color:var(--muted);letter-spacing:.04em;text-align:center;flex-shrink:0}
-.cl span{color:var(--gold);font-family:var(--fm);font-weight:600;font-size:14px}
+.cl{font-family:var(--fb);font-size:14px;color:var(--muted);letter-spacing:.04em;text-align:center;flex-shrink:0}
+.cl span{color:var(--gold);font-family:var(--fm);font-weight:600;font-size:16px}
 .ft{position:fixed;font-family:var(--fm);font-size:18px;font-weight:600;color:var(--gold2);pointer-events:none;z-index:999;text-shadow:0 2px 8px rgba(0,0,0,.8);opacity:0}
 .ft.run{animation:fu 1s ease-out forwards}
 @keyframes fu{0%{opacity:1;transform:translateY(0) scale(1)}60%{opacity:1;transform:translateY(-48px) scale(1.1)}100%{opacity:0;transform:translateY(-80px) scale(.8)}}
 .pb{background:linear-gradient(135deg,var(--panel),var(--bg3));border:1px solid var(--border);border-radius:7px;padding:6px 12px;width:100%;text-align:center;flex-shrink:0}
-.pb .dn{font-family:var(--fd);font-size:14px;color:var(--gold2);font-weight:700;line-height:1.2}
-.pb .dl{font-size:10px;color:var(--muted);font-family:var(--fm);margin-top:1px}
-.dist-upgrade{width:100%;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-shrink:0}
+.pb .dn{font-family:var(--fd);font-size:16px;color:var(--gold2);font-weight:700;line-height:1.2}
+.pb .dl{font-size:11px;color:var(--muted);font-family:var(--fm);margin-top:2px}
+.dist-upgrade{width:100%;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-shrink:0}
 .dist-upgrade .du-info{min-width:0;flex:1}
-.dist-upgrade .du-name{font-family:var(--fd);font-size:12px;color:var(--cream);font-weight:700;line-height:1.2}
-.dist-upgrade .du-next{font-family:var(--fm);font-size:10px;color:var(--muted);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dist-upgrade .du-name{font-family:var(--fd);font-size:14px;color:var(--cream);font-weight:700;line-height:1.2}
+.dist-upgrade .du-next{font-family:var(--fm);font-size:11px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* BUSINESS */
 #tb.on{padding:12px;display:flex;flex-direction:column;gap:8px}
 .sec{font-family:var(--fd);font-size:12px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;padding:4px 4px 8px;border-bottom:1px solid var(--border);margin-bottom:4px}
 .fc{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px;display:flex;align-items:center;gap:12px;margin-bottom:8px}
 .fc.lk{opacity:.4;filter:grayscale(.5)}
 .fc .fi{font-size:28px;flex-shrink:0}
-.fc .fn{font-family:var(--fd);font-size:14px;color:var(--cream);font-weight:700}
-.fc .fs{font-family:var(--fm);font-size:11px;color:var(--muted);margin-top:3px}
-.fc .fic{font-family:var(--fm);font-size:12px;color:var(--green);margin-top:2px}
-.fr{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0}
-.lv{font-family:var(--fm);font-size:10px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 6px;color:var(--gold)}
-.ub{background:linear-gradient(135deg,var(--amber),var(--gold));border:none;border-radius:6px;padding:6px 10px;font-family:var(--fm);font-size:11px;font-weight:600;color:#1a1208;cursor:pointer;white-space:nowrap;transition:filter .15s,transform .1s;min-width:68px;text-align:center}
+.fc .fn{font-family:var(--fd);font-size:15px;color:var(--cream);font-weight:700}
+.fc .fs{font-family:var(--fm);font-size:12px;color:var(--muted);margin-top:3px}
+.fc .fic{font-family:var(--fm);font-size:13px;color:var(--green);margin-top:3px}
+.fr{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0}
+.lv{font-family:var(--fm);font-size:11px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:3px 7px;color:var(--gold)}
+.ub{background:linear-gradient(135deg,var(--amber),var(--gold));border:none;border-radius:6px;padding:8px 12px;font-family:var(--fm);font-size:13px;font-weight:600;color:#1a1208;cursor:pointer;white-space:nowrap;transition:filter .15s,transform .1s;min-width:78px;text-align:center}
 .ub:active{transform:scale(.95)}
 .ub.ca{background:var(--bg3);color:var(--muted);border:1px solid var(--border)}
 .ub.mx{background:var(--bg3);color:var(--green);border:1px solid var(--green)}
@@ -100,12 +100,12 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--fb);height:10
 .wc:active{transform:scale(.95)}
 .wc.ul{border-color:var(--gold)}
 .wc.lk .wn{filter:blur(4px)}
-.wc .wb{font-size:26px;text-align:center;line-height:1.3}
-.wc .wn{font-family:var(--fd);font-size:11px;text-align:center;color:var(--cream);font-weight:700;margin-top:3px;line-height:1.2;word-break:break-word}
-.wc .wr{font-size:9px;text-align:center;color:var(--muted);margin-top:2px;font-family:var(--fm)}
-.wc .ws{text-align:center;font-size:10px;margin-top:2px;color:var(--gold)}
+.wc .wb{font-size:28px;text-align:center;line-height:1.3}
+.wc .wn{font-family:var(--fd);font-size:12px;text-align:center;color:var(--cream);font-weight:700;margin-top:4px;line-height:1.2;word-break:break-word}
+.wc .wr{font-size:10px;text-align:center;color:var(--muted);margin-top:2px;font-family:var(--fm)}
+.wc .ws{text-align:center;font-size:11px;margin-top:3px;color:var(--gold)}
 .wc .wlk{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:22px;background:rgba(13,10,7,.6);border-radius:8px}
-.fb{flex-shrink:0;background:var(--bg3);border:1px solid var(--border);border-radius:16px;padding:5px 12px;font-family:var(--fm);font-size:11px;color:var(--muted);cursor:pointer;white-space:nowrap}
+.fb{flex-shrink:0;background:var(--bg3);border:1px solid var(--border);border-radius:16px;padding:6px 14px;font-family:var(--fm);font-size:12px;color:var(--muted);cursor:pointer;white-space:nowrap}
 .fb.on{background:var(--amber);border-color:var(--gold);color:#1a1208;font-weight:600}
 /* MODAL */
 .mo{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:100;display:flex;align-items:flex-end;justify-content:center}
@@ -186,7 +186,7 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--fb);height:10
   <div id="content">
     <!-- DISTILL -->
     <div id="td" class="tab on">
-      <div class="pb"><div class="dn" id="dn">ホームキット</div><div class="dl">Distillery Level <span id="dlv">1</span></div></div>
+      <div class="pb" id="distInfo" style="cursor:pointer" title="蒸留所の解説を見る"><div class="dn" id="dn">ホームキット</div><div class="dl">Tier <span id="dlv">1</span> ／ 販売地域 <span id="dreg" style="color:var(--gold)">地元</span> ／ 同時製造 <span id="dslot" style="color:var(--green)">1</span> <span style="color:var(--gold);font-size:11px;margin-left:6px">📖</span></div></div>
       <div class="sr">
         <div class="sc"><div class="sl">収益/時間</div><div class="sv" id="si">$0</div></div>
         <div class="sc"><div class="sl">総売上</div><div class="sv" id="st">$0</div></div>
@@ -343,9 +343,10 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--fb);height:10
       <div class="sec">⭐ 名声アップグレード（タップ強化）</div>
       <div class="fc">
         <div class="fi">⭐</div>
-        <div style="flex:1">
+        <div style="flex:1;min-width:0">
           <div class="fn">ツアー名声</div>
-          <div class="fs" id="cli">Lv 0 → $2/tap</div>
+          <div class="fs" style="color:var(--text2);line-height:1.5;font-size:11px;margin-top:4px">蒸留所見学ツアーで名声を高め、来訪者の試飲・購買単価を引き上げる施策。Lvが上がるほど樽タップ1回あたりの売上が増加する。</div>
+          <div class="fs" id="cli" style="margin-top:5px">Lv 0 → $2/tap</div>
           <div class="fic" id="cni">次: $3/tap</div>
         </div>
         <div class="fr">
@@ -455,31 +456,47 @@ const OWNER_LINE_IDS = [
  */
 
 // ===== バランス調整パラメータ =====
+// 1か月程度でコンプリート可能な経済設計に再調整
 const BALANCE = {
   TAP_BASE: 2,
   TAP_MUL: 1.5,
   TAP_COST_BASE: 50,
   TAP_COST_MUL: 3,
   FAC_INC_MUL: 2,
-  FAC_COST_MUL: 2.5,
-  CRAFT_COST_RATIO: 0.1,
+  FAC_COST_MUL: 3.5,            // 2.5→3.5（中盤以降の急上昇）
+  CRAFT_COST_RATIO: 0.3,        // 0.1→0.3（原価率30%）
   YEAR_EXP: 0.6,
   OFFLINE_CAP_H: 8,
   TICK_MS: 250,
   SAVE_INTERVAL_MS: 30000,
   UI_REFRESH_MS: 2000,
   MAX_LV: 10,
-  SCHEMA_VERSION: 4,
-  STORAGE_PREFIX: 'we_v4:'
+  SCHEMA_VERSION: 5,            // 自動製造モードへの移行
+  STORAGE_PREFIX: 'we_v4:',     // ストレージキーは互換性のため据え置き
+  // 自動製造（旧自動販売）
+  AM_BASE_INTERVAL_MS: 30000,   // ボトリングLv1で30秒/本（高Lvで短縮）
+  AM_AUTO_SELL_THRESHOLD: 10,   // 在庫がこの本数に達すると自動販売
+  // タップ画面のギャップ検知（フォアグラウンド復帰判定）
+  TICK_GAP_DETECT_MS: 5000      // 5秒以上の間隔があればオフライン補正
 };
 
+// 蒸留所ティア（中盤以降のunlockコストを大幅に増額。コンプリートに約1か月想定）
+// region: 販売地域、desc: 蒸留所の解説、slots: 同時製造可能銘柄数（=Tier番号）
 const DL=[
-  {name:"ホームキット",mult:1,unlock:0},
-  {name:"クラフト蒸留所",mult:50,unlock:200000},
-  {name:"地方蒸留所",mult:2500,unlock:10000000},
-  {name:"大手蒸留所",mult:125000,unlock:500000000},
-  {name:"コングロマリット",mult:6250000,unlock:25000000000}
+  {name:"ホームキット",mult:1,unlock:0,region:"地元",slots:1,
+   desc:"自宅キッチンに小型単式蒸留器（アランビック）と数本の樽を並べた「家内製酒場」。原料調達から熟成まで完全DIYで、地元の知人にだけ販売できる規模。"},
+  {name:"クラフト蒸留所",mult:50,unlock:500000,region:"国内",slots:2,
+   desc:"独立した工場棟を持つマイクロディスティラリー。1日数百本の生産能力と、国内流通網への参入が可能に。職人気質の評価が口コミで広がる段階。"},
+  {name:"地方蒸留所",mult:2500,unlock:50000000,region:"アジア",slots:3,
+   desc:"歴史ある産地に拠点を構えるリージョナル蒸留所。複数の蒸留室と熟成庫を擁し、アジア圏への輸出と免税店ライセンスを取得。地域の象徴的存在に。"},
+  {name:"大手蒸留所",mult:125000,unlock:50000000000,region:"欧米",slots:4,
+   desc:"大手酒類メーカー直営の本格蒸留所。年間数百万本生産、欧米の主要バイヤーと長期契約。専属マスターブレンダーによるプレミアムラインも展開。"},
+  {name:"コングロマリット",mult:6250000,unlock:50000000000000,region:"全世界",slots:5,
+   desc:"世界5大ウイスキー産地を擁する多国籍コングロマリット。年間数千万本、世界100か国以上に販売網。希少ヴィンテージはオークション市場でも記録的価格を更新。"}
 ];
+
+const REGION_NAMES=["地元","国内","アジア","欧米","全世界"];
+function currentRegion(){return DL[G.dl-1]?DL[G.dl-1].region:"地元";}
 
 const FD=[
   {id:"malting",name:"製麦室",icon:"🌾",bi:42,bc:84,pur:0,uc:null,ul:"開始時から利用可能"},
@@ -536,33 +553,35 @@ const TT=[
 ];
 
 // 図鑑の解禁条件（label = 表示用テキスト、secret = 解禁条件を非開示）
-// 末尾3銘柄（hibique / pappy_v / imperial）はシークレット扱い
+// 中盤以降は「他銘柄を◯本販売」の条件を加えて単純な総売上では進めなくする
+// G.cw[id] = その銘柄の累計販売本数
+function cw(id){return G.cw[id]||0;}
 const UNLOCK_REQ=[
   {id:"glenlivid",req:()=>true,label:"最初から利用可能"},
   {id:"jameston",req:()=>G.te>=5000,label:"総売上 $5K で解禁"},
   {id:"jack_d",req:()=>G.te>=15000,label:"総売上 $15K で解禁"},
-  {id:"johnnie_em",req:()=>G.te>=30000,label:"総売上 $30K で解禁"},
-  {id:"makers_w",req:()=>G.te>=60000,label:"総売上 $60K で解禁"},
-  {id:"glenfiddock",req:()=>G.te>=100000,label:"総売上 $100K で解禁"},
-  {id:"rushmill",req:()=>G.te>=200000,label:"総売上 $200K で解禁"},
-  {id:"laphrogue",req:()=>G.te>=350000,label:"総売上 $350K で解禁"},
-  {id:"talisco",req:()=>G.te>=500000,label:"総売上 $500K で解禁"},
-  {id:"highland_b",req:()=>G.te>=750000,label:"総売上 $750K で解禁"},
-  {id:"ardbeck",req:()=>G.te>=1200000,label:"総売上 $1.2M で解禁"},
-  {id:"glenmoran",req:()=>G.te>=2000000,label:"総売上 $2M で解禁"},
-  {id:"buffalo_t",req:()=>G.te>=3500000,label:"総売上 $3.5M で解禁"},
-  {id:"suntree_t",req:()=>G.te>=5000000,label:"総売上 $5M で解禁"},
-  {id:"chivas_f",req:()=>G.te>=8000000,label:"総売上 $8M で解禁"},
-  {id:"nikkei_p",req:()=>G.te>=12000000,label:"総売上 $12M で解禁"},
-  {id:"crown_r",req:()=>G.te>=20000000,label:"総売上 $20M で解禁"},
-  {id:"macallen",req:()=>G.dl>=2,label:"蒸留所Lv2 で解禁"},
-  {id:"balvenix",req:()=>G.dl>=2&&G.te>=50000000,label:"蒸留所Lv2 + 総売上 $50M で解禁"},
-  {id:"dalvista",req:()=>G.dl>=3,label:"蒸留所Lv3 で解禁"},
-  {id:"yamashiki",req:()=>G.dl>=3&&G.te>=200000000,label:"蒸留所Lv3 + 総売上 $200M で解禁"},
-  {id:"hakusha",req:()=>G.dl>=3&&G.te>=300000000,label:"蒸留所Lv3 + 総売上 $300M で解禁"},
+  {id:"johnnie_em",req:()=>G.te>=30000&&cw('glenlivid')>=10,label:"総売上 $30K + Glenlivid 10本販売"},
+  {id:"makers_w",req:()=>G.te>=60000&&cw('jack_d')>=10,label:"総売上 $60K + Jack Danielo's 10本販売"},
+  {id:"glenfiddock",req:()=>G.te>=100000&&cw('glenlivid')>=20,label:"総売上 $100K + Glenlivid 20本販売"},
+  {id:"rushmill",req:()=>G.te>=200000&&cw('jameston')>=30,label:"総売上 $200K + Jameston 30本販売"},
+  {id:"laphrogue",req:()=>G.te>=350000&&G.dl>=2,label:"総売上 $350K + 蒸留所Lv2"},
+  {id:"talisco",req:()=>G.te>=500000&&cw('johnnie_em')>=30,label:"総売上 $500K + Johnnie Emerald 30本販売"},
+  {id:"highland_b",req:()=>G.te>=750000&&cw('glenfiddock')>=30,label:"総売上 $750K + Glenfiddock 30本販売"},
+  {id:"ardbeck",req:()=>G.te>=1200000&&cw('laphrogue')>=20,label:"総売上 $1.2M + Laphrogue 20本販売"},
+  {id:"glenmoran",req:()=>G.te>=2000000&&G.dl>=2&&cw('highland_b')>=30,label:"総売上 $2M + 蒸留所Lv2 + Highland Bark 30本"},
+  {id:"buffalo_t",req:()=>G.te>=3500000&&cw('makers_w')>=50,label:"総売上 $3.5M + Maker's Wax 50本販売"},
+  {id:"suntree_t",req:()=>G.te>=5000000&&G.dl>=2,label:"総売上 $5M + 蒸留所Lv2"},
+  {id:"chivas_f",req:()=>G.te>=8000000&&cw('johnnie_em')>=80,label:"総売上 $8M + Johnnie Emerald 80本販売"},
+  {id:"nikkei_p",req:()=>G.te>=12000000&&cw('suntree_t')>=40&&G.dl>=3,label:"総売上 $12M + Suntree Toki 40本 + 蒸留所Lv3"},
+  {id:"crown_r",req:()=>G.te>=20000000&&cw('buffalo_t')>=50,label:"総売上 $20M + Buffalo Tracks 50本販売"},
+  {id:"macallen",req:()=>G.dl>=3,label:"蒸留所Lv3 で解禁"},
+  {id:"balvenix",req:()=>G.dl>=3&&G.te>=80000000&&cw('macallen')>=40,label:"蒸留所Lv3 + 総売上 $80M + MacAllen 40本販売"},
+  {id:"dalvista",req:()=>G.dl>=3&&cw('macallen')>=80,label:"蒸留所Lv3 + MacAllen 80本販売"},
+  {id:"yamashiki",req:()=>G.dl>=3&&G.te>=300000000&&cw('nikkei_p')>=80,label:"蒸留所Lv3 + 総売上 $300M + Nikkei Pure 80本"},
+  {id:"hakusha",req:()=>G.dl>=4&&cw('yamashiki')>=50,label:"蒸留所Lv4 + Yamashiki 50本販売"},
   {id:"hibique",req:()=>G.dl>=4,label:"???",secret:true},
-  {id:"pappy_v",req:()=>G.dl>=4&&G.te>=2000000000,label:"???",secret:true},
-  {id:"imperial",req:()=>{const a=WL.filter(w=>w.id!=='imperial');return a.every(w=>G.uw.includes(w.id));},label:"???",secret:true}
+  {id:"pappy_v",req:()=>G.dl>=4&&G.te>=5000000000&&cw('buffalo_t')>=200,label:"???",secret:true},
+  {id:"imperial",req:()=>{const a=WL.filter(w=>w.id!=='imperial');return a.every(w=>G.uw.includes(w.id))&&G.dl>=5;},label:"???",secret:true}
 ];
 
 function getUnlockInfo(id){
@@ -663,7 +682,10 @@ function defState(){
   FD.forEach(f=>{fac[f.id]={l:0,p:false};});
   if(fac['malting'])fac['malting'].p=true; // 開始施設は最初から購入済み扱い
   return {
-    cash:0,te:0,tt:0,dl:1,cl:0,fac,uw:[],cw:{},aw:{},tl:[],
+    cash:0,te:0,tt:0,dl:1,cl:0,fac,uw:[],cw:{},
+    am:{},   // 自動製造ON銘柄 {[id]:true} (旧 G.aw を改名)
+    inv:{},  // 在庫 {[id]:count}（製造済み未販売）
+    tl:[],
     ls:Date.now(),ver:BALANCE.SCHEMA_VERSION,
     dbgMul:1 // 検証モード倍率（1=通常、100=受動収益100倍）
   };
@@ -680,11 +702,23 @@ function sanitize(s){
   if(!Array.isArray(s.uw))s.uw=[];
   if(!Array.isArray(s.tl))s.tl=[];
   if(typeof s.cw!=='object'||s.cw===null)s.cw={};
-  // 自動販売フラグ（既知ウィスキーIDのみ保持）
-  if(typeof s.aw!=='object'||s.aw===null)s.aw={};
-  const aw={};
-  Object.keys(s.aw).forEach(id=>{if(WL.find(w=>w.id===id))aw[id]=!!s.aw[id];});
-  s.aw=aw;
+  // 旧 aw（自動販売）を am（自動製造）にマイグレーション
+  if(s.aw&&typeof s.aw==='object'&&!s.am)s.am=s.aw;
+  if(typeof s.am!=='object'||s.am===null)s.am={};
+  const am={};
+  Object.keys(s.am).forEach(id=>{if(WL.find(w=>w.id===id))am[id]=!!s.am[id];});
+  s.am=am;
+  delete s.aw; // 旧フィールドは削除
+  // 在庫（既知ウィスキーIDのみ保持）
+  if(typeof s.inv!=='object'||s.inv===null)s.inv={};
+  const inv={};
+  Object.keys(s.inv).forEach(id=>{
+    if(WL.find(w=>w.id===id)){
+      const n=Math.max(0,Math.floor(Number(s.inv[id])||0));
+      if(n>0)inv[id]=n;
+    }
+  });
+  s.inv=inv;
   if(typeof s.fac!=='object'||s.fac===null)s.fac={};
   const fac={};
   FD.forEach(f=>{
@@ -854,21 +888,84 @@ function upgFac(id){
   closeM();
 }
 
-function upgDist(){
-  const n=G.dl+1;
-  if(n>DL.length)return;
-  const c=DL[n-1].unlock;
-  if(G.cash<c){toast('資金不足');return;}
-  showConfirm({
-    title:'蒸留所アップグレード',
-    msg:`${escapeHtml(DL[n-1].name)} へアップグレードしますか？<br>コスト: <b style="color:var(--gold2)">${fmt(c)}</b>`,
-    icon:'🏭',danger:false,yesLabel:'実行',
-    onYes:()=>{
-      G.cash-=c;G.dl=n;
-      chkT();chkUnlocks();rall();
-      toast(`🎉 ${DL[n-1].name}へアップグレード!`,3000);
-    }
+// 蒸留所アップグレード可能か（全施設がMAX_LV、かつ次Tier存在、かつ資金充足）
+function canUpgDist(){
+  if(G.dl>=DL.length)return false;
+  return FD.every(f=>{
+    const s=G.fac[f.id];
+    return s&&s.p&&s.l>=BALANCE.MAX_LV;
   });
+}
+// 未達施設の数を返す（UI表示用）
+function distMissingCount(){
+  let n=0;
+  FD.forEach(f=>{
+    const s=G.fac[f.id];
+    if(!s||!s.p||s.l<BALANCE.MAX_LV)n++;
+  });
+  return n;
+}
+function upgDist(){
+  if(G.dl>=DL.length){toast('最大Tierです');return;}
+  if(!canUpgDist()){
+    const miss=distMissingCount();
+    toast(`全${FD.length}施設をLv${BALANCE.MAX_LV}まで拡張してください（残${miss}施設）`,3500);
+    return;
+  }
+  const n=G.dl+1;
+  const next=DL[n-1];
+  const c=next.unlock;
+  if(G.cash<c){toast('資金不足: '+fmt(c)+' 必要',3000);return;}
+  // 詳細モーダルで確認
+  $('mc2').innerHTML=`
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+      <span style="font-size:36px">🏭</span>
+      <div>
+        <div style="font-family:var(--fd);font-size:20px;font-weight:900;color:var(--gold2)">${escapeHtml(next.name)}</div>
+        <div style="font-family:var(--fm);font-size:11px;color:var(--muted);margin-top:2px">Tier ${n} / ${DL.length} ・ 販売地域: ${escapeHtml(next.region)}</div>
+      </div>
+    </div>
+    <div style="background:linear-gradient(135deg,var(--bg3),var(--panel));border:1px solid var(--gold);border-radius:10px;padding:14px;margin-bottom:14px">
+      <div style="font-family:var(--fm);font-size:10px;color:var(--gold);letter-spacing:.12em;margin-bottom:8px">📜 蒸留所の概要</div>
+      <div style="font-size:13px;color:var(--text2);line-height:1.65;font-family:var(--fb)">${escapeHtml(next.desc)}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center">
+        <div style="font-family:var(--fm);font-size:10px;color:var(--muted);text-transform:uppercase">収益倍率</div>
+        <div style="font-family:var(--fm);font-size:14px;color:var(--gold2);font-weight:600;margin-top:4px">×${next.mult.toLocaleString()}</div>
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--green);border-radius:8px;padding:10px;text-align:center">
+        <div style="font-family:var(--fm);font-size:10px;color:var(--green);text-transform:uppercase">同時製造数</div>
+        <div style="font-family:var(--fm);font-size:14px;color:var(--green);font-weight:600;margin-top:4px">${n} 銘柄</div>
+      </div>
+    </div>
+    <div style="background:rgba(192,64,64,.1);border:1px solid var(--red);border-radius:8px;padding:10px 12px;margin-bottom:14px">
+      <div style="font-family:var(--fm);font-size:11px;color:var(--red);font-weight:600;letter-spacing:.06em">⚠ 注意: 全施設がLv0にリセットされます</div>
+      <div style="font-family:var(--fb);font-size:11px;color:var(--text2);margin-top:4px;line-height:1.5">新しい規模での製造を開始します。再度施設を拡張する必要がありますが、収益倍率が大きく上昇します。</div>
+    </div>
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div style="font-family:var(--fm);font-size:12px;color:var(--muted)">アップグレード費用</div>
+      <div style="font-family:var(--fm);font-size:16px;font-weight:600;color:var(--gold2)">${fmt(c)}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <button class="btn-cancel" data-act="closeM">キャンセル</button>
+      <button data-act="distConfirm" data-cost="${c}" data-tier="${n}" style="padding:13px;background:linear-gradient(135deg,var(--amber),var(--gold));border:none;border-radius:10px;font-family:var(--fd);font-size:15px;font-weight:700;color:#1a1208;cursor:pointer">✓ アップグレード</button>
+    </div>
+  `;
+  $('mo').classList.remove('h');
+}
+// 確認後の実行
+function doUpgDist(cost,tier){
+  if(G.cash<cost){toast('資金不足');closeM();return;}
+  G.cash-=cost;G.dl=tier;
+  // 全施設をLv0にリセット（malting のみ p:true 維持）
+  FD.forEach(f=>{
+    G.fac[f.id]={l:0,p:f.id==='malting'};
+  });
+  // 自動製造もすべて停止（リセット後に再設定）
+  G.am={};
+  chkT();chkUnlocks();rall();closeM();
+  toast(`🎉 ${DL[tier-1].name} へアップグレード! 全施設リセット`,4500);
 }
 
 function craft(id){
@@ -904,43 +1001,91 @@ function canAutoSell(whiskyId){
 function autoSellInterval(){
   const bot=G.fac&&G.fac.bottling;
   if(!bot||!bot.p||bot.l===0)return Infinity;
-  return Math.max(500,5000/bot.l);
+  return Math.max(2000,BALANCE.AM_BASE_INTERVAL_MS/bot.l);
 }
-const lastAutoSell={}; // {whiskyId: timestamp}
+function maxAMConcurrent(){return G.dl;}
+function activeAMCount(){
+  if(!G.am)return 0;
+  return Object.values(G.am).filter(v=>v).length;
+}
+function canEnableAM(id){
+  if(G.am&&G.am[id])return true; // 既にONならOFF操作は常にOK
+  if(activeAMCount()>=maxAMConcurrent())return false; // スロット上限
+  return canAutoSell(id);
+}
+function sellInventory(id){
+  if(!G.inv)G.inv={};
+  const cnt=G.inv[id]||0;
+  if(cnt<=0)return 0;
+  const w=WL.find(x=>x.id===id);
+  if(!w)return 0;
+  const p=wp(id);
+  if(!isFinite(p)||p<=0)return 0;
+  const total=p*cnt;
+  G.cash+=total;G.te+=total;
+  G.cw[id]=(G.cw[id]||0)+cnt;
+  G.inv[id]=0;
+  if(!G.uw.includes(id))G.uw.push(id);
+  return total;
+}
+const lastAutoSell={}; // {whiskyId: 最終製造時刻}
 function autoSellTick(){
   const interval=autoSellInterval();
   if(!isFinite(interval))return;
-  if(!G.aw)return;
+  if(!G.am)return;
+  if(!G.inv)G.inv={};
   const now=Date.now();
-  let soldAny=false;
-  Object.keys(G.aw).forEach(id=>{
-    if(!G.aw[id])return;
+  let madeAny=false;
+  Object.keys(G.am).forEach(id=>{
+    if(!G.am[id])return;
     if(!G.uw.includes(id))return;
-    if(!WL.find(w=>w.id===id))return; // 未知IDの保険
-    if(!canAutoSell(id))return; // 解禁条件未達ならスキップ（ボトリングLvが必要レベルに未達）
+    if(!WL.find(w=>w.id===id))return;
+    if(!canAutoSell(id))return;
     if((now-(lastAutoSell[id]||0))<interval)return;
     const p=wp(id);
     const cc=Math.round(p*BALANCE.CRAFT_COST_RATIO);
     if(!isFinite(p)||p<=0||G.cash<cc)return;
-    G.cash-=cc;G.cash+=p;G.te+=p;
-    G.cw[id]=(G.cw[id]||0)+1;
+    G.cash-=cc;
+    G.inv[id]=(G.inv[id]||0)+1;
     lastAutoSell[id]=now;
-    soldAny=true;
+    madeAny=true;
+    // 在庫が閾値に達したら一括販売
+    if(G.inv[id]>=BALANCE.AM_AUTO_SELL_THRESHOLD){
+      sellInventory(id);
+    }
   });
-  if(soldAny){
+  if(madeAny){
     $('hc').textContent=fmt(G.cash);
     $('st').textContent=fmt(G.te);
   }
 }
 function toggleAutoSell(id){
-  if(!G.aw)G.aw={};
-  G.aw[id]=!G.aw[id];
+  if(!G.am)G.am={};
+  if(!G.am[id]&&!canEnableAM(id)){
+    if(activeAMCount()>=maxAMConcurrent()){
+      toast(`同時製造は最大 ${maxAMConcurrent()} 種類まで（蒸留所Lvで増加）`,3000);
+    }else{
+      toast(`解禁条件未達`,2500);
+    }
+    return;
+  }
+  G.am[id]=!G.am[id];
   save();
   const w=WL.find(x=>x.id===id);
-  toast(G.aw[id]?`🤖 ${w.name} 自動販売 ON`:`⏸ ${w.name} 自動販売 OFF`,2000);
-  // モーダルを再描画してボタン状態を反映
+  toast(G.am[id]?`🤖 ${w.name} 自動製造 ON`:`⏸ ${w.name} 自動製造 OFF`,2000);
   openWhiskyModal(id);
-  // 図鑑カード上のバッジも更新
+  const at=document.querySelector('.tab.on');
+  if(at&&at.id==='te')renc();
+}
+// ユーザーが手動で在庫を販売
+function manualSellInventory(id){
+  const earned=sellInventory(id);
+  if(earned<=0){toast('在庫がありません',2000);return;}
+  const w=WL.find(x=>x.id===id);
+  toast(`💰 ${w.name} 一括販売! +${fmt(earned)}`,2500);
+  chkT();chkUnlocks();
+  openWhiskyModal(id);
+  updHdr();
   const at=document.querySelector('.tab.on');
   if(at&&at.id==='te')renc();
 }
@@ -957,6 +1102,39 @@ function chkT(){
 
 // ===== 施設拡張履歴モーダル =====
 // 各施設の過去のレベルアップテキスト(FAC_UPG)を後から参照する図鑑機能
+// 蒸留所Tier一覧モーダル（現Tierハイライト＋解説）
+function openDistInfoModal(){
+  let body='';
+  DL.forEach((d,i)=>{
+    const cur=i+1===G.dl;
+    const reached=i+1<=G.dl;
+    body+=`<div style="padding:14px;background:${cur?'linear-gradient(135deg,var(--bg3),var(--panel))':'var(--bg3)'};border:1px solid ${cur?'var(--gold)':'var(--border)'};border-left:3px solid ${reached?'var(--gold)':'var(--border)'};border-radius:8px;margin-bottom:10px;${reached?'':'opacity:.55'}">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-family:var(--fm);font-size:11px;background:${cur?'var(--gold)':'var(--bg2)'};color:${cur?'#1a1208':'var(--gold)'};border-radius:4px;padding:3px 8px;font-weight:700;letter-spacing:.06em">Tier ${i+1}</span>
+        <span style="font-family:var(--fd);font-size:15px;color:var(--cream);font-weight:700">${escapeHtml(d.name)}</span>
+        ${cur?'<span style="font-family:var(--fm);font-size:10px;color:var(--green);margin-left:auto">現在</span>':''}
+      </div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.6;font-family:var(--fb);margin-bottom:8px">${escapeHtml(d.desc)}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;font-family:var(--fm);font-size:10px;color:var(--muted)">
+        <span>収益倍率 ×${d.mult.toLocaleString()}</span>
+        <span>・ 販売地域 ${escapeHtml(d.region)}</span>
+        <span>・ 同時製造 ${d.slots}銘柄</span>
+      </div>
+    </div>`;
+  });
+  $('mc2').innerHTML=`
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+      <span style="font-size:32px">🏭</span>
+      <div>
+        <div style="font-family:var(--fd);font-size:18px;color:var(--gold2);font-weight:900">蒸留所Tier一覧</div>
+        <div style="font-family:var(--fm);font-size:11px;color:var(--muted);margin-top:3px">各Tierの規模・販売地域・同時製造数</div>
+      </div>
+    </div>
+    ${body}
+  `;
+  $('mo').classList.remove('h');
+}
+
 function openHistModal(id){
   const f=FD.find(x=>x.id===id);
   if(!f)return;
@@ -1022,37 +1200,44 @@ function offline(){
   const facEarned=ti()*hours;
   let totalEarned=isFinite(facEarned)&&facEarned>0?facEarned:0;
 
-  // 2) 自動販売収益（ボトリング購入＆ON銘柄のみ、現実残高で支払い可能な範囲）
+  // 2) 自動製造→在庫→閾値で一括販売（オフライン期間分をシミュレート）
   let autoSalesCount=0;
   const interval=autoSellInterval();
   const cappedMs=hours*3600000; // 8時間キャップ後のミリ秒
-  if(isFinite(interval)&&interval>0&&G.aw){
-    // 残高は連続的に推移するため、各銘柄の販売数を独立に評価
-    // (簡略化: 期間中に発生し得る最大売数。残高不足でない限り自動販売は赤字にならないため概ね正確)
-    Object.keys(G.aw).forEach(id=>{
-      if(!G.aw[id])return;
+  if(isFinite(interval)&&interval>0){
+    if(!G.am)G.am={};
+    if(!G.inv)G.inv={};
+    Object.keys(G.am).forEach(id=>{
+      if(!G.am[id])return;
       if(!G.uw.includes(id))return;
       if(!WL.find(w=>w.id===id))return;
-      if(!canAutoSell(id))return; // 銘柄ごとの解禁条件をオフライン補正にも適用
+      if(!canAutoSell(id))return; // 銘柄ごとの解禁条件
       const p=wp(id);
       const cc=Math.round(p*BALANCE.CRAFT_COST_RATIO);
       if(!isFinite(p)||p<=0)return;
-      const netPerSale=p-cc;
-      if(netPerSale<=0)return;
-      // 期間中の最大販売数
-      const maxSales=Math.floor(cappedMs/interval);
-      if(maxSales<=0)return;
-      // 残高制約: 現キャッシュ + 施設収益 + これまでの自動販売純益で何回まで賄えるか
-      // 厳密には連立だが、保守側に倒すため以下で評価
+      // 期間中に最大何本製造できるか
+      const maxManufacture=Math.floor(cappedMs/interval);
+      if(maxManufacture<=0)return;
+      // 残高制約（製造原価で連続購入可能な数）
       const fundsAvail=G.cash+totalEarned;
-      const sustainableSales=netPerSale>0?maxSales:Math.floor(fundsAvail/cc);
-      const salesCount=Math.min(maxSales,sustainableSales);
-      if(salesCount<=0)return;
-      const earnedHere=netPerSale*salesCount;
-      totalEarned+=earnedHere;
-      G.cw[id]=(G.cw[id]||0)+salesCount;
-      lastAutoSell[id]=now; // 復帰直後の即連発を防止
-      autoSalesCount+=salesCount;
+      const fundConstrainedManu=Math.floor(fundsAvail/cc);
+      const manufactureCount=Math.min(maxManufacture,fundConstrainedManu);
+      if(manufactureCount<=0)return;
+      // 既存在庫 + 新規製造を合算して、閾値ごとに販売
+      const totalStock=(G.inv[id]||0)+manufactureCount;
+      const threshold=BALANCE.AM_AUTO_SELL_THRESHOLD;
+      const soldBatches=Math.floor(totalStock/threshold);
+      const soldCount=soldBatches*threshold;
+      const remainingStock=totalStock-soldCount;
+      // 経済効果
+      const manufactureCost=cc*manufactureCount;
+      const saleRevenue=p*soldCount;
+      const netGain=saleRevenue-manufactureCost;
+      totalEarned+=netGain;
+      G.cw[id]=(G.cw[id]||0)+soldCount;
+      G.inv[id]=remainingStock;
+      lastAutoSell[id]=now;
+      autoSalesCount+=soldCount;
     });
   }
 
@@ -1085,18 +1270,86 @@ function rdistLight(){
   $('st').textContent=fmt(G.te);
 }
 
+// 蒸留所Tierに応じた樽SVGの装飾オーバーレイを更新
+// Tier1: 装飾なし / Tier2: 王冠＋追加グラス / Tier3: バックの樽列 /
+// Tier4: 工業ライト＋金プレート / Tier5: 全要素＋オーラ
+let _tapTierAt=-1;
+function rTapVisuals(){
+  if(_tapTierAt===G.dl)return;
+  _tapTierAt=G.dl;
+  const svg=document.querySelector('#bb svg');
+  if(!svg)return;
+  // 既存の装飾レイヤを除去して再構築
+  let layer=svg.querySelector('#tierDeco');
+  if(layer)layer.remove();
+  layer=document.createElementNS('http://www.w3.org/2000/svg','g');
+  layer.setAttribute('id','tierDeco');
+  layer.setAttribute('pointer-events','none');
+  const t=G.dl;
+  let html='';
+  // Tier2以降: 王冠
+  if(t>=2){
+    html+='<g transform="translate(100,30)">'+
+      '<polygon points="-15,5 -10,-8 -5,3 0,-12 5,3 10,-8 15,5 12,10 -12,10" fill="#e8b94a" stroke="#8a5a18" stroke-width="0.6"/>'+
+      '<circle cx="-10" cy="-8" r="1.4" fill="#fff" opacity="0.85"/>'+
+      '<circle cx="0" cy="-12" r="1.6" fill="#ff6e4a"/>'+
+      '<circle cx="10" cy="-8" r="1.4" fill="#fff" opacity="0.85"/>'+
+      '</g>';
+  }
+  // Tier3以降: 背景に追加の樽列（小さめ）
+  if(t>=3){
+    const mini=(cx)=>'<g transform="translate('+cx+',180) scale(0.32)" opacity="0.85">'+
+      '<ellipse cx="0" cy="40" rx="55" ry="6" fill="#000" opacity="0.5"/>'+
+      '<path d="M -50,-90 Q -75,-15 -50,60 Q 0,80 50,60 Q 75,-15 50,-90 Z" fill="#5a2f15" stroke="#0a0500" stroke-width="0.8"/>'+
+      '<path d="M -50,-50 Q -55,-45 -50,-37 Q 0,-30 50,-37 Q 55,-45 50,-50 Z" fill="#1a1a1a"/>'+
+      '<path d="M -55,15 Q -58,22 -55,30 Q 0,36 55,30 Q 58,22 55,15 Z" fill="#1a1a1a"/>'+
+      '</g>';
+    html+=mini(35)+mini(205);
+  }
+  // Tier4以降: 金プレート＋スポットライト
+  if(t>=4){
+    html+='<rect x="60" y="118" width="80" height="14" rx="2" fill="#1a1208" stroke="#e8b94a" stroke-width="0.6"/>'+
+      '<text x="100" y="128" text-anchor="middle" font-family="serif" font-size="9" fill="#e8b94a" font-weight="bold" letter-spacing="2">PREMIUM</text>'+
+      '<defs><radialGradient id="spot'+t+'" cx="50%" cy="0%"><stop offset="0%" stop-color="#fff" stop-opacity="0.18"/><stop offset="100%" stop-color="#fff" stop-opacity="0"/></radialGradient></defs>'+
+      '<ellipse cx="100" cy="40" rx="80" ry="40" fill="url(#spot'+t+')"/>';
+  }
+  // Tier5: ゴールドオーラ＋星
+  if(t>=5){
+    html+='<g opacity="0.85">'+
+      '<text x="35" y="60" font-size="14" fill="#e8b94a">✦</text>'+
+      '<text x="170" y="55" font-size="11" fill="#e8b94a">✧</text>'+
+      '<text x="180" y="200" font-size="13" fill="#e8b94a">✦</text>'+
+      '<text x="25" y="195" font-size="12" fill="#e8b94a">✧</text>'+
+      '</g>'+
+      '<defs><filter id="goldGlow"><feGaussianBlur stdDeviation="3"/></filter></defs>';
+  }
+  layer.innerHTML=html;
+  // 装飾は最前面（樽の手前）
+  svg.appendChild(layer);
+}
+
 function rdist(){
   const d=DL[G.dl-1];
   $('dn').textContent=d.name;
   $('dlv').textContent=G.dl;
+  if($('dreg'))$('dreg').textContent=d.region;
+  if($('dslot'))$('dslot').textContent=d.slots;
+  rTapVisuals(); // Tier装飾を更新
   rdistLight();
   const n=G.dl+1;const btn=$('dub');const inf=$('dni');
-  if(n>DL.length){btn.textContent='最大';btn.className='ub mx';inf.textContent='最大レベル';}
-  else{
-    const c=DL[n-1].unlock;
-    btn.textContent=fmt(c);
-    btn.className='ub'+(G.cash>=c?'':' ca');
-    inf.textContent='次: '+DL[n-1].name;
+  if(n>DL.length){
+    btn.textContent='最大';btn.className='ub mx';
+    inf.textContent='最大Tier達成 ／ 販売地域: '+d.region+' ／ 同時製造 '+d.slots+'銘柄';
+  }else{
+    const next=DL[n-1];
+    const c=next.unlock;
+    const ready=canUpgDist();
+    const miss=distMissingCount();
+    btn.textContent=ready?fmt(c):'要件未達';
+    btn.className='ub'+(ready&&G.cash>=c?'':' ca');
+    inf.textContent=ready
+      ?`次: ${next.name} ／ 販売地域 ${next.region} ／ 同時製造 ${next.slots}銘柄`
+      :`全${FD.length}施設をLv${BALANCE.MAX_LV}まで拡張で解放（残${miss}施設）`;
   }
 }
 
@@ -1197,11 +1450,15 @@ function renc(){
   const frag=document.createDocumentFragment();
   filt.forEach(w=>{
     const ul=G.uw.includes(w.id);
-    const autoOn=ul&&G.aw&&G.aw[w.id];
+    const autoOn=ul&&G.am&&G.am[w.id];
+    const stock=ul&&G.inv?(G.inv[w.id]||0):0;
+    const badges=
+      (autoOn?'<div style="position:absolute;top:3px;right:3px;background:var(--green);color:#fff;border-radius:3px;padding:1px 4px;font-size:9px;font-family:var(--fm);font-weight:600;line-height:1.2">🤖</div>':'')+
+      (stock>0?`<div style="position:absolute;bottom:3px;right:3px;background:var(--gold);color:#1a1208;border-radius:3px;padding:1px 4px;font-size:9px;font-family:var(--fm);font-weight:700;line-height:1.2">📦${stock}</div>`:'');
     const c=document.createElement('div');
     c.className='wc'+(ul?' ul':' lk');
     c.dataset.id=w.id;
-    c.innerHTML=`<div class="wb">${ul?w.em+'🥃':'❓'}</div><div class="wn">${ul?escapeHtml(w.name):'???'}</div><div class="wr">${ul?escapeHtml(w.rg):'???'}</div><div class="ws">${ul?'★'.repeat(w.st)+'☆'.repeat(3-w.st):'???'}</div>${!ul?'<div class="wlk">🔒</div>':''}${autoOn?'<div style="position:absolute;top:3px;right:3px;background:var(--green);color:#fff;border-radius:3px;padding:1px 4px;font-size:9px;font-family:var(--fm);font-weight:600;line-height:1.2">🤖</div>':''}`;
+    c.innerHTML=`<div class="wb">${ul?w.em+'🥃':'❓'}</div><div class="wn">${ul?escapeHtml(w.name):'???'}</div><div class="wr">${ul?escapeHtml(w.rg):'???'}</div><div class="ws">${ul?'★'.repeat(w.st)+'☆'.repeat(3-w.st):'???'}</div>${!ul?'<div class="wlk">🔒</div>':''}${badges}`;
     frag.appendChild(c);
   });
   g.appendChild(frag);
@@ -1284,6 +1541,7 @@ function openWhiskyModal(id){
     <div style="background:var(--bg3);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:13px;color:var(--text2);line-height:1.6">${escapeHtml(w.ds)}</div>
     <div style="font-family:var(--fm);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">フレーバー</div>
     <div class="fl">${fl}</div>
+    <div class="msr"><div class="msl">販売地域</div><div class="msv">${escapeHtml(currentRegion())}（×${DL[G.dl-1].mult.toLocaleString()}）</div></div>
     <div class="msr"><div class="msl">樽ボーナス</div><div class="msv">×${w.ck}</div></div>
     <div class="msr"><div class="msl">販売価格</div><div class="msv">${fmt(p)}/本</div></div>
     <div class="msr"><div class="msl">製造コスト</div><div class="msv">${fmt(cc)}</div></div>
@@ -1294,20 +1552,37 @@ function openWhiskyModal(id){
     ${(()=>{
       const bot=G.fac&&G.fac.bottling;
       const botOk=bot&&bot.p&&bot.l>0;
-      const autoOn=!!(G.aw&&G.aw[id]);
+      const autoOn=!!(G.am&&G.am[id]);
       const reqLv=autoSellRequiredBotLv(w.st);
+      const stock=(G.inv&&G.inv[id])||0;
+      const slotsUsed=activeAMCount();
+      const slotsMax=maxAMConcurrent();
+      // 在庫がある場合は手動販売ボタン
+      const stockBlock=stock>0?`
+        <div style="margin-top:10px;padding:12px;background:linear-gradient(135deg,#1a1208,var(--bg3));border:1px solid var(--gold);border-radius:8px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <div style="font-family:var(--fm);font-size:11px;color:var(--gold);letter-spacing:.08em">📦 製造済み在庫</div>
+            <div style="font-family:var(--fm);font-size:14px;color:var(--gold2);font-weight:700">${stock}本（${BALANCE.AM_AUTO_SELL_THRESHOLD}本で自動販売）</div>
+          </div>
+          <button data-act="sellInv" data-id="${id}" style="width:100%;padding:10px;background:linear-gradient(135deg,var(--amber),var(--gold));border:none;border-radius:6px;color:#1a1208;font-family:var(--fd);font-size:14px;font-weight:700;cursor:pointer">
+            💰 在庫を一括販売 +${fmt(p*stock)}
+          </button>
+        </div>`:'';
       if(!botOk){
-        return `<div style="margin-top:10px;padding:10px;background:var(--bg3);border:1px dashed var(--border);border-radius:8px;font-family:var(--fm);font-size:11px;color:var(--muted);text-align:center">🤖 ボトリングラインを購入＆Lv1以上で自動販売解禁</div>`;
+        return `<div style="margin-top:10px;padding:10px;background:var(--bg3);border:1px dashed var(--border);border-radius:8px;font-family:var(--fm);font-size:11px;color:var(--muted);text-align:center">🤖 ボトリングラインを購入＆Lv1以上で自動製造解禁</div>${stockBlock}`;
       }
       if(!canAutoSell(id)){
-        return `<div style="margin-top:10px;padding:10px;background:var(--bg3);border:1px dashed var(--border);border-radius:8px;font-family:var(--fm);font-size:11px;color:var(--muted);text-align:center">🤖 自動販売は ボトリングLv${reqLv} で解禁<br><span style="color:var(--text2)">現在 Lv${bot.l} ／ ${'★'.repeat(w.st)}${'☆'.repeat(3-w.st)} 銘柄</span></div>`;
+        return `<div style="margin-top:10px;padding:10px;background:var(--bg3);border:1px dashed var(--border);border-radius:8px;font-family:var(--fm);font-size:11px;color:var(--muted);text-align:center">🤖 自動製造は ボトリングLv${reqLv} で解禁<br><span style="color:var(--text2)">現在 Lv${bot.l} ／ ${'★'.repeat(w.st)}${'☆'.repeat(3-w.st)} 銘柄</span></div>${stockBlock}`;
       }
-      const intervalMs=Math.max(500,5000/bot.l);
+      const intervalMs=Math.max(2000,BALANCE.AM_BASE_INTERVAL_MS/bot.l);
       const ratePerHour=Math.round(3600000/intervalMs);
-      return `<button data-act="autosell" data-id="${id}" style="width:100%;margin-top:10px;padding:12px;background:${autoOn?'linear-gradient(135deg,#2a7a4a,#4a9a6a)':'var(--bg3)'};border:1px solid ${autoOn?'var(--green)':'var(--border)'};border-radius:8px;color:${autoOn?'#fff':'var(--text2)'};font-family:var(--fm);font-size:13px;font-weight:600;cursor:pointer;letter-spacing:.04em">
-        ${autoOn?'🤖 自動販売: ON':'⏸ 自動販売: OFF'}
+      const slotInfo=`同時製造スロット: ${slotsUsed}/${slotsMax}（蒸留所Lvで増加）`;
+      const disabled=!autoOn&&slotsUsed>=slotsMax;
+      return `<button data-act="autosell" data-id="${id}" ${disabled?'disabled style="opacity:.5;cursor:not-allowed;width:100%;margin-top:10px;padding:12px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:var(--fm);font-size:13px;font-weight:600"':'style="width:100%;margin-top:10px;padding:12px;background:'+(autoOn?'linear-gradient(135deg,#2a7a4a,#4a9a6a)':'var(--bg3)')+';border:1px solid '+(autoOn?'var(--green)':'var(--border)')+';border-radius:8px;color:'+(autoOn?'#fff':'var(--text2)')+';font-family:var(--fm);font-size:13px;font-weight:600;cursor:pointer;letter-spacing:.04em"'}>
+        ${autoOn?'🤖 自動製造: ON':disabled?'⛔ スロット上限':'⏸ 自動製造: OFF'}
       </button>
-      <div style="font-family:var(--fm);font-size:10px;color:var(--muted);text-align:center;margin-top:6px">販売間隔 ${(intervalMs/1000).toFixed(1)}秒（最大 ${ratePerHour.toLocaleString()}本/h）／ ボトリングLv${bot.l}</div>`;
+      <div style="font-family:var(--fm);font-size:10px;color:var(--muted);text-align:center;margin-top:6px">製造間隔 ${(intervalMs/1000).toFixed(1)}秒（最大 ${ratePerHour.toLocaleString()}本/h）／ ${slotInfo}</div>
+      ${stockBlock}`;
     })()}`
   :(()=>{
     const ui=getUnlockInfo(id);
@@ -1552,6 +1827,9 @@ function bindEvents(){
 
   $('cub').addEventListener('click',upgClick);
   $('dub').addEventListener('click',upgDist);
+  // 蒸留所情報クリックでTier一覧モーダルを開く（バブリングで dub のクリックは別ハンドラなのでここは pb 直接）
+  const di=$('distInfo');
+  if(di)di.addEventListener('click',openDistInfoModal);
 
   $('fl').addEventListener('click',e=>{
     const b=e.target.closest('button[data-act]');
@@ -1578,7 +1856,13 @@ function bindEvents(){
     else if(act==='ioCopy')ioCopyAction();
     else if(act==='ioApply')ioApplyAction();
     else if(act==='autosell')toggleAutoSell(id);
+    else if(act==='sellInv')manualSellInventory(id);
+    else if(act==='distConfirm'){
+      const cost=Number(b.dataset.cost),tier=Number(b.dataset.tier);
+      doUpgDist(cost,tier);
+    }
   });
+  // 履歴ボタンは事業タブ内（fl デリゲート）で処理されるが、モーダル内からは別途ハンドルなし
   $('moClose').addEventListener('click',closeM);
 
   $('btnExport').addEventListener('click',exportSave);
@@ -1694,11 +1978,24 @@ async function init(){
     }
 
     // 受動収益の累積（フォアグラウンド時のみ動作。G.ls もここで更新する）
+    // ★ tick間の時間ギャップを検知してオフライン補正を呼ぶ（X閉じ→再開時の取りこぼし対策）
+    let lastTickAt=Date.now();
     setInterval(()=>{
-      if(document.hidden)return; // バックグラウンド中はスキップ
+      if(document.hidden){
+        lastTickAt=Date.now(); // バックグラウンド時もタイムスタンプは更新
+        return;
+      }
+      const now=Date.now();
+      const gap=now-lastTickAt;
+      lastTickAt=now;
+      // 通常tickは250ms。それより大幅に遅延した場合、停止していたとみなして offline() を呼ぶ
+      if(gap>BALANCE.TICK_GAP_DETECT_MS){
+        offline();
+        return;
+      }
       const inc=ti()*(BALANCE.TICK_MS/3600000);
       if(inc>0){G.cash+=inc;G.te+=inc;}
-      markActive(); // 能動的にプレイ中であることを記録
+      markActive();
     },BALANCE.TICK_MS);
 
     // 軽量UI更新（フォアグラウンド時のみ）
