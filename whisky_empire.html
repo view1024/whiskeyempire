@@ -480,20 +480,27 @@ const BALANCE = {
   TICK_GAP_DETECT_MS: 5000      // 5秒以上の間隔があればオフライン補正
 };
 
-// 蒸留所ティア（中盤以降のunlockコストを大幅に増額。コンプリートに約1か月想定）
-// region: 販売地域、desc: 蒸留所の解説、slots: 同時製造可能銘柄数（=Tier番号）
+// 蒸留所ティア
+// unlockコストは「全施設をLv10まで拡張するために必要な総額」を上回るよう設定。
+// FAC_COST_MUL=3.5 で全6施設を Lv10 まで上げる総額（dm 倍率込）の概算:
+//   Tier1合計≒$190M / Tier2≒$9.5B / Tier3≒$475B / Tier4≒$24T
+// それぞれのTier→次への昇格コストはこの総額を上回るように設定する
+// bonus: 各Tier到達で得られる全体倍率（cv/fi に乗る）
 const DL=[
-  {name:"ホームキット",mult:1,unlock:0,region:"地元",slots:1,
+  {name:"ホームキット",mult:1,unlock:0,region:"地元",slots:1,bonus:1.0,
    desc:"自宅キッチンに小型単式蒸留器（アランビック）と数本の樽を並べた「家内製酒場」。原料調達から熟成まで完全DIYで、地元の知人にだけ販売できる規模。"},
-  {name:"クラフト蒸留所",mult:50,unlock:500000,region:"国内",slots:2,
-   desc:"独立した工場棟を持つマイクロディスティラリー。1日数百本の生産能力と、国内流通網への参入が可能に。職人気質の評価が口コミで広がる段階。"},
-  {name:"地方蒸留所",mult:2500,unlock:50000000,region:"アジア",slots:3,
-   desc:"歴史ある産地に拠点を構えるリージョナル蒸留所。複数の蒸留室と熟成庫を擁し、アジア圏への輸出と免税店ライセンスを取得。地域の象徴的存在に。"},
-  {name:"大手蒸留所",mult:125000,unlock:50000000000,region:"欧米",slots:4,
-   desc:"大手酒類メーカー直営の本格蒸留所。年間数百万本生産、欧米の主要バイヤーと長期契約。専属マスターブレンダーによるプレミアムラインも展開。"},
-  {name:"コングロマリット",mult:6250000,unlock:50000000000000,region:"全世界",slots:5,
-   desc:"世界5大ウイスキー産地を擁する多国籍コングロマリット。年間数千万本、世界100か国以上に販売網。希少ヴィンテージはオークション市場でも記録的価格を更新。"}
+  {name:"クラフト蒸留所",mult:50,unlock:500000000,region:"国内",slots:2,bonus:1.1,
+   desc:"独立した工場棟を持つマイクロディスティラリー。1日数百本の生産能力と、国内流通網への参入が可能に。職人気質の評価が口コミで広がる段階。\n\n【拡張特典】タップ・施設収益 +10%、ブレンダー研究室の解禁。"},
+  {name:"地方蒸留所",mult:2500,unlock:50000000000,region:"アジア",slots:3,bonus:1.25,
+   desc:"歴史ある産地に拠点を構えるリージョナル蒸留所。複数の蒸留室と熟成庫を擁し、アジア圏への輸出と免税店ライセンスを取得。地域の象徴的存在に。\n\n【拡張特典】収益倍率 +25%、3銘柄並列製造、地域限定銘柄ライン。"},
+  {name:"大手蒸留所",mult:125000,unlock:5000000000000,region:"欧米",slots:4,bonus:1.5,
+   desc:"大手酒類メーカー直営の本格蒸留所。年間数百万本生産、欧米の主要バイヤーと長期契約。専属マスターブレンダーによるプレミアムラインも展開。\n\n【拡張特典】収益倍率 +50%、4銘柄並列製造、欧米プレミアム流通網。"},
+  {name:"コングロマリット",mult:6250000,unlock:500000000000000,region:"全世界",slots:5,bonus:2.0,
+   desc:"世界5大ウイスキー産地を擁する多国籍コングロマリット。年間数千万本、世界100か国以上に販売網。希少ヴィンテージはオークション市場でも記録的価格を更新。\n\n【拡張特典】収益倍率 ×2、5銘柄並列製造、世界販売網、限定ヴィンテージ解禁。"}
 ];
+
+// Tierボーナス倍率（cv/fi に乗算）
+function tierBonus(){const d=DL[(G.dl||1)-1];return d&&d.bonus?d.bonus:1.0;}
 
 const REGION_NAMES=["地元","国内","アジア","欧米","全世界"];
 function currentRegion(){return DL[G.dl-1]?DL[G.dl-1].region:"地元";}
@@ -549,7 +556,13 @@ const TT=[
   {id:"t8",lb:"マスターテイスター",ch:s=>s.uw.length>=25},
   {id:"t9",lb:"クラフト蒸留家",ch:s=>s.dl>=2},
   {id:"t10",lb:"地方の名士",ch:s=>s.dl>=3},
-  {id:"t11",lb:"全施設稼働",ch:s=>Object.values(s.fac).filter(f=>f.p).length>=6}
+  {id:"t11",lb:"全施設稼働",ch:s=>Object.values(s.fac).filter(f=>f.p).length>=6},
+  // Tier別到達称号（追加コンテンツ）
+  {id:"t12",lb:"業界の重鎮",ch:s=>s.dl>=4},
+  {id:"t13",lb:"帝国の創始者",ch:s=>s.dl>=5},
+  {id:"t14",lb:"$1T達成",ch:s=>s.te>=1000000000000},
+  {id:"t15",lb:"全Tier制覇者",ch:s=>s.dl>=DL.length},
+  {id:"t16",lb:"並列製造の達人",ch:s=>{let n=0;for(const k in (s.am||{})){if(s.am[k])n++;}return n>=3;}}
 ];
 
 // 図鑑の解禁条件（label = 表示用テキスト、secret = 解禁条件を非開示）
@@ -731,7 +744,7 @@ function sanitize(s){
   s.fac=fac;
   s.fac['malting'].p=true; // 開始施設は常時利用可
   s.ls=Number(s.ls)||Date.now();
-  s.dbgMul=Math.max(1,Math.min(10000,Number(s.dbgMul)||1));
+  s.dbgMul=Math.max(1,Math.min(100000,Number(s.dbgMul)||1));
   s.ver=BALANCE.SCHEMA_VERSION;
   return {...d,...s};
 }
@@ -779,16 +792,16 @@ function clearStorage(){
 
 // ===== 計算 =====
 function dm(){return DL[G.dl-1].mult;}
-function cv(){return BALANCE.TAP_BASE*dm()*Math.pow(BALANCE.TAP_MUL,G.cl);}
+function cv(){return BALANCE.TAP_BASE*dm()*Math.pow(BALANCE.TAP_MUL,G.cl)*tierBonus();}
 function cuc(){
   if(G.cl>=BALANCE.MAX_LV)return Infinity;
   return Math.round(BALANCE.TAP_COST_BASE*Math.pow(BALANCE.TAP_COST_MUL,G.cl)*dm());
 }
 function fi(id){
-  // 個別施設の時間あたり収益。dbgMul はここで適用し、合計と個別の単位を一致させる
+  // 個別施設の時間あたり収益。dbgMul と tierBonus を含め、合計と個別の単位を一致させる
   const f=FD.find(x=>x.id===id),s=G.fac[id];
   if(!s||!s.p||s.l===0)return 0;
-  return f.bi*dm()*Math.pow(BALANCE.FAC_INC_MUL,s.l)*(G.dbgMul||1);
+  return f.bi*dm()*Math.pow(BALANCE.FAC_INC_MUL,s.l)*tierBonus()*(G.dbgMul||1);
 }
 function ti(){
   // 受動収益（時間あたり）の合計。fi() が既に dbgMul を含むのでここでは掛けない
@@ -964,8 +977,14 @@ function doUpgDist(cost,tier){
   });
   // 自動製造もすべて停止（リセット後に再設定）
   G.am={};
+  // 在庫もクリア（旧Tierの単価で計算済みのため）
+  G.inv={};
   chkT();chkUnlocks();rall();closeM();
-  toast(`🎉 ${DL[tier-1].name} へアップグレード! 全施設リセット`,4500);
+  // Tier到達特典のサマリーを表示
+  const next=DL[tier-1];
+  setTimeout(()=>{
+    toast(`🎉 ${next.name} 到達! 倍率×${next.mult.toLocaleString()}, 同時製造${next.slots}銘柄, ボーナス×${next.bonus}`,7000);
+  },200);
 }
 
 function craft(id){
@@ -1092,33 +1111,57 @@ function manualSellInventory(id){
 
 // ===== 解禁・称号判定（イベント駆動） =====
 function chkT(){
+  let added=false;
   TT.forEach(t=>{
     if(!G.tl.includes(t.id)&&t.ch(G)){
       G.tl.push(t.id);
+      added=true;
       toast(`🏅 称号獲得: ${t.lb}`,3000);
     }
   });
+  // 称号取得時はプロフィールの表示を即時更新（プロフィール開時に最新を反映）
+  if(added){
+    if($('ptitle'))$('ptitle').textContent=gTitle();
+    const at=document.querySelector('.tab.on');
+    if(at&&at.id==='tp')rprof();
+  }
 }
 
 // ===== 施設拡張履歴モーダル =====
 // 各施設の過去のレベルアップテキスト(FAC_UPG)を後から参照する図鑑機能
-// 蒸留所Tier一覧モーダル（現Tierハイライト＋解説）
+// 蒸留所Tier一覧モーダル（到達済みTierのみ解説を表示。未到達はロック表示）
 function openDistInfoModal(){
   let body='';
   DL.forEach((d,i)=>{
-    const cur=i+1===G.dl;
-    const reached=i+1<=G.dl;
-    body+=`<div style="padding:14px;background:${cur?'linear-gradient(135deg,var(--bg3),var(--panel))':'var(--bg3)'};border:1px solid ${cur?'var(--gold)':'var(--border)'};border-left:3px solid ${reached?'var(--gold)':'var(--border)'};border-radius:8px;margin-bottom:10px;${reached?'':'opacity:.55'}">
+    const tier=i+1;
+    const cur=tier===G.dl;
+    const reached=tier<=G.dl;
+    if(!reached){
+      // 未到達はTier番号のみ表示（解説はロック）
+      body+=`<div style="padding:12px 14px;background:var(--bg3);border:1px dashed var(--border);border-radius:8px;margin-bottom:10px;opacity:.6">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-family:var(--fm);font-size:11px;background:var(--bg2);color:var(--muted);border-radius:4px;padding:3px 8px;font-weight:700">Tier ${tier}</span>
+          <span style="font-family:var(--fm);font-size:13px;color:var(--muted);filter:blur(3px);user-select:none">??????</span>
+          <span style="margin-left:auto;font-size:14px">🔒</span>
+        </div>
+        <div style="font-family:var(--fm);font-size:10px;color:var(--muted);margin-top:6px">アップグレードで解禁・解説が読めるようになります</div>
+      </div>`;
+      return;
+    }
+    // 解説テキスト（改行コード対応のためテキストエスケープ後に <br> 化）
+    const descHtml=escapeHtml(d.desc).replace(/\n/g,'<br>');
+    body+=`<div style="padding:14px;background:${cur?'linear-gradient(135deg,var(--bg3),var(--panel))':'var(--bg3)'};border:1px solid ${cur?'var(--gold)':'var(--border)'};border-left:3px solid var(--gold);border-radius:8px;margin-bottom:10px">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-        <span style="font-family:var(--fm);font-size:11px;background:${cur?'var(--gold)':'var(--bg2)'};color:${cur?'#1a1208':'var(--gold)'};border-radius:4px;padding:3px 8px;font-weight:700;letter-spacing:.06em">Tier ${i+1}</span>
+        <span style="font-family:var(--fm);font-size:11px;background:${cur?'var(--gold)':'var(--bg2)'};color:${cur?'#1a1208':'var(--gold)'};border-radius:4px;padding:3px 8px;font-weight:700;letter-spacing:.06em">Tier ${tier}</span>
         <span style="font-family:var(--fd);font-size:15px;color:var(--cream);font-weight:700">${escapeHtml(d.name)}</span>
         ${cur?'<span style="font-family:var(--fm);font-size:10px;color:var(--green);margin-left:auto">現在</span>':''}
       </div>
-      <div style="font-size:12px;color:var(--text2);line-height:1.6;font-family:var(--fb);margin-bottom:8px">${escapeHtml(d.desc)}</div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.65;font-family:var(--fb);margin-bottom:8px">${descHtml}</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;font-family:var(--fm);font-size:10px;color:var(--muted)">
         <span>収益倍率 ×${d.mult.toLocaleString()}</span>
         <span>・ 販売地域 ${escapeHtml(d.region)}</span>
         <span>・ 同時製造 ${d.slots}銘柄</span>
+        <span>・ Tierボーナス ×${d.bonus}</span>
       </div>
     </div>`;
   });
@@ -1127,7 +1170,7 @@ function openDistInfoModal(){
       <span style="font-size:32px">🏭</span>
       <div>
         <div style="font-family:var(--fd);font-size:18px;color:var(--gold2);font-weight:900">蒸留所Tier一覧</div>
-        <div style="font-family:var(--fm);font-size:11px;color:var(--muted);margin-top:3px">各Tierの規模・販売地域・同時製造数</div>
+        <div style="font-family:var(--fm);font-size:11px;color:var(--muted);margin-top:3px">到達済みTierの解説のみ表示</div>
       </div>
     </div>
     ${body}
@@ -1189,11 +1232,12 @@ function chkUnlocks(){
 // ===== オフライン補正 =====
 function offline(){
   // G.ls を関数の冒頭で即時更新し、再呼び出し時の二重補正を防止
-  // （visibilitychange/init/復帰イベント等で複数回トリガーされる可能性に備える）
   const now=Date.now();
-  const elapsedMs=now-G.ls;
+  const elapsedMs=Math.max(0,now-G.ls);
   const hours=Math.min(elapsedMs/3600000,BALANCE.OFFLINE_CAP_H);
   G.ls=now;
+  // 診断用ログ（コンソールで確認可能）
+  try{console.log('[offline]',{elapsedMs,hours:hours.toFixed(3),tiPerH:ti(),G_dl:G.dl});}catch(e){}
   if(hours<=0)return;
 
   // 1) 施設受動収益
@@ -1243,17 +1287,27 @@ function offline(){
 
   if(totalEarned>0&&isFinite(totalEarned)){
     G.cash+=totalEarned;G.te+=totalEarned;
-    let msg=`💤 オフライン収益: +${fmt(totalEarned)} (${hours.toFixed(1)}h)`;
+    // 即時に永続化して、後続のクラッシュ等でも収益が消えないように
+    try{save();}catch(e){}
+    let msg=`💤 オフライン収益: +${fmt(totalEarned)} (${hours.toFixed(2)}h)`;
     if(autoSalesCount>0)msg+=` / 自動販売 ${autoSalesCount.toLocaleString()}本`;
-    toast(msg,4500);
+    // 直後のchkUnlocks/chkTトーストに上書きされないよう少しだけ遅延
+    setTimeout(()=>toast(msg,8000),150);
+  }else if(elapsedMs>120000){
+    // 長時間離脱なのに収益0の場合、要因を伝える
+    setTimeout(()=>toast(`💤 ${hours.toFixed(1)}時間離脱（収益なし: 施設をLv1以上に拡張してください）`,5000),150);
   }
 }
 
 // ===== タイトル =====
 function gTitle(){
-  const order=['t10','t9','t8','t7','t6','t5','t4','t3','t11','t2','t1'];
+  // 優先度高順: 制覇＞高Tier＞高売上＞テイスター＞その他
+  const order=['t15','t13','t12','t10','t9','t14','t8','t7','t6','t16','t11','t5','t4','t3','t2','t1'];
   for(const id of order){
-    if(G.tl.includes(id))return TT.find(t=>t.id===id).lb;
+    if(G.tl.includes(id)){
+      const t=TT.find(x=>x.id===id);
+      if(t)return t.lb;
+    }
   }
   return '見習い蒸留家';
 }
@@ -1768,7 +1822,7 @@ function syncDebugBtn(){
   btn.style.borderStyle=on?'solid':'dashed';
 }
 function toggleDebug(){
-  G.dbgMul=(G.dbgMul||1)>1?1:100;
+  G.dbgMul=(G.dbgMul||1)>1?1:10000;
   syncDebugBtn();
   save();
   // 表示を即時反映
@@ -2045,6 +2099,20 @@ if(document.readyState==='loading'){
 // バックグラウンド遷移直前に「最終能動時刻」を確定させてから永続化
 window.addEventListener('beforeunload',()=>{markActive();save();});
 window.addEventListener('pagehide',()=>{markActive();save();});
+// BFCacheから復帰した場合（X閉じ→再開でinit()が走らないケース）も補正
+window.addEventListener('pageshow',e=>{
+  if(e&&e.persisted){
+    offline();
+    chkUnlocks();
+    rall();
+  }
+});
+// blur/focus（一部環境でvisibilitychangeより先に発火）も保険として捕捉
+window.addEventListener('blur',()=>{markActive();try{save();}catch(_){}});
+window.addEventListener('focus',()=>{
+  // visibilitychange-visibleと重複しても offline() の冒頭で G.ls=now されるため安全
+  offline();
+});
 document.addEventListener('visibilitychange',()=>{
   if(document.hidden){
     markActive(); // この瞬間を「最終能動時刻」として記録
