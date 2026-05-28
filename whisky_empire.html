@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Whisky Empire</title>
 <!--
   LINEミニアプリ（LIFF）対応 単一HTMLファイル
@@ -36,7 +36,7 @@
   --fd:'Playfair Display',serif;--fb:'Crimson Text',serif;--fm:'JetBrains Mono',monospace;
   --sb:env(safe-area-inset-bottom,0px)
 }
-*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 html,body{background:var(--bg);color:var(--text);font-family:var(--fb);height:100%;overflow:hidden;user-select:none}
 #app{display:flex;flex-direction:column;height:100dvh;max-width:480px;margin:0 auto}
 #hdr{flex-shrink:0;background:linear-gradient(180deg,#1a1208,var(--bg2));border-bottom:1px solid var(--border);padding:10px 16px 8px;display:flex;align-items:center;gap:12px}
@@ -1739,7 +1739,7 @@ function exportSave(){
   $('mc2').innerHTML=`
     <div class="mt">📤 セーブのエクスポート</div>
     <div class="ms">下のテキストをコピーして安全に保管してください</div>
-    <textarea id="ioText" readonly style="width:100%;min-height:120px;padding:10px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--fm);font-size:11px;resize:vertical;word-break:break-all">${escapeHtml(data)}</textarea>
+    <textarea id="ioText" readonly style="width:100%;min-height:120px;padding:10px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--fm);font-size:16px;resize:vertical;word-break:break-all">${escapeHtml(data)}</textarea>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px">
       <button class="btn-cancel" data-act="closeM">閉じる</button>
       <button data-act="ioCopy" style="padding:13px;background:linear-gradient(135deg,var(--amber),var(--gold));border:none;border-radius:10px;font-family:var(--fd);font-size:15px;font-weight:700;color:#1a1208;cursor:pointer">📋 コピー</button>
@@ -1754,7 +1754,7 @@ function importSave(){
   $('mc2').innerHTML=`
     <div class="mt">📥 セーブのインポート</div>
     <div class="ms">エクスポートしたセーブ文字列を貼り付けてください</div>
-    <textarea id="ioText" placeholder="ここに貼り付け..." style="width:100%;min-height:120px;padding:10px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--fm);font-size:11px;resize:vertical;word-break:break-all"></textarea>
+    <textarea id="ioText" placeholder="ここに貼り付け..." style="width:100%;min-height:120px;padding:10px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--fm);font-size:16px;resize:vertical;word-break:break-all"></textarea>
     <div style="font-family:var(--fm);font-size:10px;color:var(--red);margin-top:8px">⚠ 現在のデータが上書きされます</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
       <button class="btn-cancel" data-act="closeM">キャンセル</button>
@@ -2100,6 +2100,11 @@ setTimeout(()=>{
     hideLoading('起動タイムアウト');
   }
 },8000);
+
+// iOS Safari ピンチズーム・ジェスチャーズームを完全防止
+document.addEventListener('gesturestart',function(e){e.preventDefault();},{passive:false});
+document.addEventListener('gesturechange',function(e){e.preventDefault();},{passive:false});
+document.addEventListener('gestureend',function(e){e.preventDefault();},{passive:false});
 
 // DOM 準備完了次第、即座に init を呼ぶ
 if(document.readyState==='loading'){
