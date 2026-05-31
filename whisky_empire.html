@@ -70,7 +70,7 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--fb);height:10
 .barrel-section{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:0;gap:10px;padding:6px 0}
 .barrel-area{width:min(54vw,200px);aspect-ratio:1;max-height:calc(100% - 40px);cursor:pointer;flex-shrink:1;touch-action:manipulation;position:relative}
 .barrel-area:active svg, .barrel-area:active img{transform:scale(.94)}
-.barrel-area svg, .barrel-area img{transition:transform .08s,filter .2s;filter:drop-shadow(0 10px 24px rgba(0,0,0,.6));width:100%;height:100%;display:block}
+.barrel-area svg, .barrel-area img{transition:transform .08s,filter .4s;filter:drop-shadow(0 10px 24px rgba(0,0,0,.6));width:100%;height:100%;display:block}
 .barrel-area img.crit-flash{filter:drop-shadow(0 0 24px rgba(255,200,80,.95)) drop-shadow(0 10px 24px rgba(0,0,0,.6))}
 .cl{font-family:var(--fb);font-size:14px;color:var(--muted);letter-spacing:.04em;text-align:center;flex-shrink:0}
 .cl span{color:var(--gold);font-family:var(--fm);font-weight:600;font-size:16px}
@@ -178,6 +178,31 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--fb);height:10
 .tk-txt{display:inline-block;white-space:nowrap;line-height:22px;will-change:transform}
 .tk-txt.run{animation:tkScroll var(--tk-dur,20s) linear forwards}
 @keyframes tkScroll{from{transform:translateX(var(--tk-start,100vw))}to{transform:translateX(-100%)}}
+
+/* ===== 評判バー ===== */
+#repBar{flex-shrink:0;display:flex;align-items:center;gap:8px;padding:0 12px;background:var(--bg2);border-bottom:1px solid var(--border);height:20px}
+#repRankLabel{font-family:var(--fm);font-size:9px;letter-spacing:.06em;white-space:nowrap;width:90px;overflow:hidden;text-overflow:ellipsis;color:var(--muted);transition:color .4s}
+#repTrack{flex:1;height:4px;background:var(--bg3);border-radius:2px;overflow:hidden}
+#repFill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--amber),var(--gold2));width:0%;transition:width .6s ease}
+#repVal{font-family:var(--fm);font-size:9px;color:var(--muted);min-width:28px;text-align:right}
+
+/* ===== コンボビジュアル =====  */
+.combo-lv1 svg,.combo-lv1 img{filter:drop-shadow(0 0  8px rgba(200,150,42,.55))}
+.combo-lv2 svg,.combo-lv2 img{filter:drop-shadow(0 0 16px rgba(200,150,42,.8))}
+.combo-lv3 svg,.combo-lv3 img{filter:drop-shadow(0 0 24px rgba(232,185,74,.95))}
+.combo-lv4 svg,.combo-lv4 img{animation:barrelPulse 1.2s ease-in-out infinite}
+@keyframes barrelPulse{
+  0%,100%{filter:drop-shadow(0 0 28px rgba(255,248,192,1)) drop-shadow(0 0 10px var(--gold2))}
+  50%    {filter:drop-shadow(0 0 44px rgba(255,248,192,1)) drop-shadow(0 0 18px var(--gold2)) brightness(1.15)}
+}
+/* クリティカルリング */
+#td{position:relative}
+#td::after{content:'';position:absolute;inset:0;pointer-events:none;border-radius:4px;opacity:0}
+#td.crit-ring::after{animation:critRing .5s ease-out forwards}
+@keyframes critRing{
+  0%  {opacity:1;box-shadow:inset 0 0 60px rgba(255,160,40,.65)}
+  100%{opacity:0;box-shadow:inset 0 0 60px rgba(255,160,40,.0)}
+}
 ::-webkit-scrollbar{width:4px}
 ::-webkit-scrollbar-track{background:var(--bg)}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
@@ -209,6 +234,7 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--fb);height:10
     <button id="sndBtn" onclick="toggleSound()" style="background:none;border:none;font-size:20px;cursor:pointer;padding:4px;color:var(--muted);line-height:1" title="サウンドON/OFF">🔊</button>
   </div>
   <div id="eventBanner" style="display:none;position:relative;z-index:50;background:linear-gradient(135deg,#1a1208,var(--bg2));border-bottom:2px solid var(--gold);padding:10px 14px;font-family:var(--fm);font-size:12px"></div>
+  <div id="repBar"><span id="repRankLabel">見習い蒸留家</span><div id="repTrack"><div id="repFill"></div></div><span id="repVal">0</span></div>
   <div id="ticker"><span class="tkl" id="tkLabel">INFO</span><div class="tk-track"><span class="tk-txt" id="tkTxt"></span></div></div>
   <div id="content">
     <!-- DISTILL -->
@@ -236,19 +262,14 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--fb);height:10
         </div>
         <button class="ub" id="dub">$200K</button>
       </div>
-      <!-- 麦汁バー＋バッチ蒸留 -->
-      <div id="washSection" style="width:100%;padding:0 8px 8px">
-        <div style="display:flex;align-items:center;justify-content:space-between;font-family:var(--fm);font-size:11px;color:var(--muted);margin-bottom:4px">
-          <span>🌾 ウォッシュ（麦汁）</span>
-          <span><span id="washCount">0</span>/<span id="washMax">100</span>
-          <span id="cutBonusInfo" style="color:var(--gold2);margin-left:6px"></span></span>
+      <!-- バッチ蒸留ボタン -->
+      <div id="batchSection" style="width:100%;padding:0 8px 8px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <span style="font-family:var(--fm);font-size:10px;color:var(--muted)">✂️ バッチ蒸留</span>
+          <span id="cutBonusInfo" style="font-family:var(--fm);font-size:10px;color:var(--gold2)"></span>
         </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span style="font-family:var(--fm);font-size:10px;color:var(--muted)">🌾 麦汁</span><span style="font-family:var(--fm);font-size:10px;color:var(--muted)"><span id="washCount">0</span> / <span id="washMax">100</span></span></div>
-        <div style="width:100%;height:10px;background:var(--bg3);border-radius:5px;overflow:hidden;margin-bottom:8px">
-          <div id="washBar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--amber),var(--gold2));transition:width .2s;border-radius:5px"></div>
-        </div>
-        <button id="btnDistill" onclick="executeBatch()" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px;font-family:var(--fm);font-size:13px;color:var(--muted);cursor:not-allowed" disabled>
-          🏭 蒸留実行（麦汁が満タンで実行可能）
+        <button id="btnDistill" onclick="executeBatch()" style="width:100%;background:linear-gradient(135deg,var(--amber),var(--gold));border:none;border-radius:8px;padding:10px;font-family:var(--fm);font-size:13px;font-weight:600;color:#1a1208;cursor:pointer">
+          🏭 蒸留実行（カット選択でボーナス取得）
         </button>
       </div>
       <!-- カット選択エリア（バッチ実行時に表示） -->
@@ -602,6 +623,13 @@ const FT_POOL=[];
 const FT_MAX=20;
 let ftIdx=0;
 let comboCount=0;
+const COMBO_STAGES=[
+  {min:0,   cls:''},
+  {min:20,  cls:'combo-lv1'},
+  {min:50,  cls:'combo-lv2'},
+  {min:100, cls:'combo-lv3'},
+  {min:200, cls:'combo-lv4'},
+];
 let comboLastAt=0;
 let comboTimer=null;
 const AUTOSELL_BOT_REQ={1:2,2:5,3:8};
@@ -866,7 +894,7 @@ function showFT(text,x,y,isCrit){
   el.style.left=(x-40)+'px';
   el.style.top=(y-20)+'px';
   if(isCrit){
-    el.style.fontSize='26px';
+    el.style.fontSize='32px';
     el.style.color='#ff6e2a';
     el.style.textShadow='0 0 12px rgba(255,200,80,.9),0 2px 8px #000';
   }else{
@@ -878,6 +906,24 @@ function showFT(text,x,y,isCrit){
   void el.offsetWidth;
   el.classList.add('run');
   ftIdx=(ftIdx+1)%FT_MAX;
+}
+function updateBarrelComboFX(){
+  const area=document.querySelector('.barrel-area');
+  if(!area)return;
+  const stage=[...COMBO_STAGES].reverse().find(s=>comboCount>=s.min)||COMBO_STAGES[0];
+  COMBO_STAGES.forEach(s=>{if(s.cls)area.classList.remove(s.cls);});
+  if(stage.cls)area.classList.add(stage.cls);
+  // combo-lv4 の animation は CSS クラスで制御するが、
+  // img に inline style.filter があると animation が上書きされるため
+  // lv4 以外のとき tier filter を復元、lv4 のとき inline filter をクリア
+  const img=area.querySelector('img');
+  if(img){
+    if(stage.cls==='combo-lv4'){
+      img.style.filter=''; // CSS animation に委ねる
+    }else if(img.dataset.tierFilter){
+      img.style.filter=img.dataset.tierFilter; // Tier由来のfilterを復元
+    }
+  }
 }
 function showComboBadge(){
   let b=$('comboBadge');
@@ -892,7 +938,10 @@ function showComboBadge(){
   clearTimeout(comboTimer);
   comboTimer=setTimeout(()=>{
     if(b)b.style.opacity='0';
+    if(comboCount>=50)toast('💨 コンボ '+comboCount+' 終了',1500);
     comboCount=0;
+    updateBarrelComboFX();
+    const cd=$('comboDisplay');if(cd){cd.textContent='×1.00';cd.style.color='';}
   },COMBO_WINDOW_MS);
 }
 function tap(e){
@@ -906,7 +955,6 @@ function tap(e){
   const isCrit=critMult>1;
   if((G._cutBonusTaps||0)>0)G._cutBonusTaps--;
   else if(G._cutBonus&&G._cutBonus>1.0)G._cutBonus=1.0;
-  G.wash=Math.min(G.washMax||100,(G.wash||0)+1);
   const baseV=cv();
   const v=baseV*cMul*critMult;
   const prevUW=G.uw.length;
@@ -925,7 +973,8 @@ function tap(e){
   $('hc').textContent=fmt(G.cash);
   $('st').textContent=fmt(G.te);
   if(comboCount>=3){showComboBadge();sndCombo(comboCount);}
-  updateWashBar();
+  updateBarrelComboFX();
+  if(isCrit){const td=$('td');if(td){td.classList.remove('crit-ring');void td.offsetWidth;td.classList.add('crit-ring');setTimeout(()=>td.classList.remove('crit-ring'),500);}}
   chkUnlocks();chkT();
   if(G.uw.length!==prevUW)$('sec').textContent=G.uw.length+'/'+WL.length;
   // コンボメーター更新
@@ -1348,7 +1397,6 @@ function defState(){
     dbgMul:1, // 検証モード倍率（1=通常、10000=受動収益10000倍）
     facByBrand: {},   // 廃止（後方互換のため維持）
     cutState: {},     // 廃止（後方互換のため維持）
-    wash:0, washMax:100,       // バッチ蒸留用麦汁
     _cutBonus:1.0,             // 現在のカット品質ボーナス
     _cutBonusTaps:0,           // カットボーナスの残りタップ数
     rawMaterials:{ grain:'golden_promise', water:'soft_spring', yeast:'distillery', peat:'unpeated' },
@@ -1437,8 +1485,7 @@ function migrate(s){
   if(!s.reputation)s.reputation=0;
   if(!s.casks)s.casks=[];
   if(!s.blendHistory)s.blendHistory=[];
-  if(s.wash===undefined)s.wash=0;
-  if(!s.washMax)s.washMax=100;
+  delete s.wash; delete s.washMax; // 麦汁廃止: 旧セーブから除去
   if(!s._cutBonus)s._cutBonus=1.0;
   if(!s.questDone)s.questDone=[];
 if(!s.daily)s.daily={date:'',missions:[],allCleared:false};
@@ -1492,11 +1539,13 @@ function load(){
     G=raw?sanitize(migrateGs(migrate(JSON.parse(raw)))):defState();
     applyPrestigeSkills();
     initTicker();
+    updateRepBar();
     // セッションカウンタはリロード毎にリセット（永続化するとイベントが再発火しなくなるバグ防止）
     if(G.randomEvent)G.randomEvent.sessionCount=0;
   }catch(e){
     console.warn('load failed:',e);
     G=defState();
+    updateRepBar();
   }
 }
 
@@ -1525,10 +1574,17 @@ function rawMod(){return 1;} // 廃止: 原料はフレーバー影響のみ（�
 
 
 function changeRep(delta, reason){
+  const prevRank=getCurrentRepRank();
   G.reputation=Math.max(0,(G.reputation||0)+delta);
   if(!G.repHistory)G.repHistory=[];
   G.repHistory.unshift({d:delta,reason,t:Date.now()});
   if(G.repHistory.length>10)G.repHistory.length=10;
+  updateRepBar();
+  const newRank=getCurrentRepRank();
+  if(newRank.min>prevRank.min){
+    toast('🏅 評判ランクアップ！ '+newRank.label,4000);
+    try{sndTierUp();}catch(e){}
+  }
 }
 function repMult(){
   // 上限×5（評判1000相当）で過剰インフレ防止
@@ -1878,6 +1934,15 @@ const LEGACY_WHISKIES=[
    text:'三度の蒸留が生む伝説。技術と情熱と時間が結晶した、帝国の証。'},
 ];
 
+// ===== 評判ランク定義 =====
+const REP_RANKS=[
+  {min:0,   label:'見習い蒸留家',  color:'var(--muted)' },
+  {min:10,  label:'地元の職人',    color:'var(--text2)' },
+  {min:25,  label:'評判の蒸留家',  color:'var(--green)' },
+  {min:50,  label:'地域の名匠',    color:'var(--amber)' },
+  {min:100, label:'全国区の名声',  color:'var(--gold)'  },
+  {min:200, label:'伝説の蒸留家',  color:'var(--gold2)' },
+];
 // ===== ティッカーメッセージ定義 =====
 const TICKER_MSGS=[
   // health (10)
@@ -2277,6 +2342,30 @@ function getPrestigeSkillEffect(skillId){
 function applyPrestigeSkills(){
   // 参照型で適用しているため init 時の特別処理は不要。将来の拡張用フック。
 }
+
+// ===== 評判バー =====
+function getCurrentRepRank(){
+  const rep=G.reputation||0;
+  return [...REP_RANKS].reverse().find(r=>rep>=r.min)||REP_RANKS[0];
+}
+function updateRepBar(){
+  const rep=Math.max(0,G.reputation||0);
+  const rank=getCurrentRepRank();
+  const rIdx=REP_RANKS.indexOf(rank);
+  const next=REP_RANKS[rIdx+1];
+  // 現ランク内進捗率
+  let pct;
+  if(!next){
+    // 最高ランク: rep が rank.min(200) を超えた分を 0〜100% で表示（上限300で満タン）
+    pct=Math.min(100,Math.round((rep-rank.min)/100*100));
+  }else{pct=Math.min(100,Math.round((rep-rank.min)/(next.min-rank.min)*100));}
+  const fill=document.getElementById('repFill');
+  const lbl=document.getElementById('repRankLabel');
+  const val=document.getElementById('repVal');
+  if(fill)fill.style.width=pct+'%';
+  if(lbl){lbl.textContent=rank.label;lbl.style.color=rank.color;}
+  if(val)val.textContent=Math.floor(rep);
+}
 // ===== ティッカー =====
 let _tkHistory=[];
 const _TK_HIST=8;
@@ -2463,6 +2552,15 @@ function gTitle(){
 // ===== 描画 =====
 function updHdr(){$('hc').textContent=fmt(G.cash);}
 
+function updateBatchBtn(){
+  const btn=$('btnDistill');if(!btn)return;
+  const ok=G.fac&&G.fac.distillation&&G.fac.distillation.p;
+  btn.disabled=!ok;
+  btn.style.background=ok?'linear-gradient(135deg,var(--amber),var(--gold))':'var(--bg3)';
+  btn.style.color=ok?'#1a1208':'var(--muted)';
+  btn.style.cursor=ok?'pointer':'not-allowed';
+  btn.style.border=ok?'none':'1px solid var(--border)';
+}
 function rdistLight(){
   const v=cv();
   $('sc2').textContent=fmt(v);
@@ -2470,6 +2568,13 @@ function rdistLight(){
   $('sec').textContent=G.uw.length+'/'+WL.length;
   $('si').textContent=fmt(ti())+'/h';
   $('st').textContent=fmt(G.te);
+  updateBatchBtn();
+  // カットボーナス残量表示
+  const cbi=$('cutBonusInfo');
+  if(cbi){
+    const taps=G._cutBonusTaps||0;
+    cbi.textContent=taps>0?'✨ カットボーナス×'+(G._cutBonus||1).toFixed(2)+' (残'+taps+'タップ)':'';
+  }
 }
 
 // 蒸留所Tierに応じてタップ画像にフィルター/装飾を適用
@@ -2485,7 +2590,10 @@ function rTapVisuals(){
     const glow=Math.min((t-1)*4,18);
     const sat=1+Math.min((t-1)*0.1,0.4);
     const bri=1+Math.min((t-1)*0.05,0.2);
-    img.style.filter=`drop-shadow(0 0 ${glow}px rgba(232,185,74,.6)) drop-shadow(0 10px 24px rgba(0,0,0,.6)) saturate(${sat}) brightness(${bri})`;
+    // inline style.filter は combo クラスと競合するため data属性に保存し
+    // updateBarrelComboFX() で合成する
+    img.dataset.tierFilter=`drop-shadow(0 0 ${glow}px rgba(232,185,74,.6)) drop-shadow(0 10px 24px rgba(0,0,0,.6)) saturate(${sat}) brightness(${bri})`;
+    img.style.filter=img.dataset.tierFilter; // 初期表示用
     // 旧Tierバッジが残っていれば撤去
     const oldBadge=document.getElementById('tierBadge');
     if(oldBadge)oldBadge.remove();
@@ -3459,7 +3567,6 @@ function rall(){
   try{renderChannelTab();}catch(e){console.warn('channelTab failed:',e);}
   try{renderAwardsTab();}catch(e){console.warn('awardsTab failed:',e);}
   try{renderBlendTab();}catch(e){console.warn('blendTab failed:',e);}
-  try{updateWashBar();}catch(e){}
 }
 
 function updateSaleSections(){
@@ -3500,30 +3607,9 @@ function updateBlendSection(){
 
 
 // ===== バッチ蒸留・カットシステム =====
-function updateWashBar(){
-  const wash=G.wash||0;
-  const washMax=G.washMax||100;
-  const pct=Math.min(100,Math.round(wash/washMax*100));
-  const wb=$('washBar');if(wb)wb.style.width=pct+'%';
-  const wc=$('washCount');if(wc)wc.textContent=wash;
-  const wm=$('washMax');if(wm)wm.textContent=washMax;
-  const btn=$('btnDistill');
-  if(btn){
-    const ready=wash>=washMax;
-    btn.disabled=!ready;
-    btn.style.background=ready?'linear-gradient(135deg,var(--amber),var(--gold))':'var(--bg3)';
-    btn.style.color=ready?'#1a1208':'var(--muted)';
-    btn.style.cursor=ready?'pointer':'not-allowed';
-    btn.style.borderColor=ready?'transparent':'var(--border)';
-    btn.textContent=ready?'🏭 蒸留実行！（タップでカット選択）':'🏭 蒸留実行（'+pct+'% / 100%）';
-  }
-  const cbi=$('cutBonusInfo');
-  if(cbi) cbi.textContent=(G._cutBonusTaps>0)?`✂️ ×${(G._cutBonus||1).toFixed(2)}（残${G._cutBonusTaps}タップ）`:'';
-}
 function executeBatch(){
-  if((G.wash||0)<(G.washMax||100)){toast('麦汁が足りません（タップで増やす）');return;}
-  G.wash=0;
-  updateWashBar();
+  if(!G.fac||!G.fac.distillation||!G.fac.distillation.p){toast('蒸留釜を購入してください',2000);return;}
+  if(_bcs.active){toast('蒸留中です。カット選択を完了してください',2000);return;}
   const ca=$('cutArea');
   if(ca)ca.style.display='';
   startBatchCut();
@@ -3568,7 +3654,6 @@ function markBatchCutEnd(){
   if(r)r.textContent='🔬 ハート取得率 '+pct+'% → 次50タップ ×'+bonus.toFixed(2);
   if(s)s.style.display='';if(m)m.style.display='none';if(e)e.style.display='none';
   if(p)p.style.width='0%';
-  updateWashBar();
   setTimeout(()=>{const ca=$('cutArea');if(ca&&!_bcs.active)ca.style.display='none';},4000);
 }
 
@@ -4083,9 +4168,6 @@ async function init(){
         return;
       }
       tickCasks(BALANCE.TICK_MS);
-      // 発酵槽稼働で麦汁を自動増加
-      const _ferLv=G.fac&&G.fac.fermentation?G.fac.fermentation.l:0;
-      if(_ferLv>0){G.wash=Math.min(G.washMax||100,(G.wash||0)+_ferLv*0.05);}
       const inc=ti()*(BALANCE.TICK_MS/3600000);
       if(inc>0){G.cash+=inc;G.te+=inc;}
       // 評判の自然減衰（0.05/hr: 約0.2pt/日 の緩やか減衰）
