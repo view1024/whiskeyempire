@@ -165,6 +165,19 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--fb);height:10
 #ld .lm{font-family:var(--fm);font-size:11px;color:var(--muted);margin-top:8px}
 .sp{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+.event-active{position:fixed;top:0;left:0;right:0;height:2px;background:var(--gold);z-index:60;animation:epulse 2s ease-in-out infinite}
+@keyframes epulse{0%,100%{opacity:.4}50%{opacity:1}}
+
+/* ===== TICKER ===== */
+#ticker{flex-shrink:0;display:flex;align-items:center;background:var(--bg3);border-bottom:1px solid var(--border);height:22px;overflow:hidden;font-family:var(--fm);font-size:10px;color:var(--muted)}
+.tkl{flex-shrink:0;padding:0 7px;letter-spacing:.08em;line-height:22px;border-right:1px solid var(--border)}
+.tkl.health{color:var(--red)}
+.tkl.tips{color:var(--green)}
+.tkl.trivia{color:var(--amber)}
+.tk-track{flex:1;overflow:hidden;position:relative;height:22px}
+.tk-txt{display:inline-block;white-space:nowrap;line-height:22px;will-change:transform}
+.tk-txt.run{animation:tkScroll var(--tk-dur,20s) linear forwards}
+@keyframes tkScroll{from{transform:translateX(var(--tk-start,100vw))}to{transform:translateX(-100%)}}
 ::-webkit-scrollbar{width:4px}
 ::-webkit-scrollbar-track{background:var(--bg)}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
@@ -195,6 +208,8 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--fb);height:10
     <div class="cash-box"><div class="cash-lbl">残高</div><div class="cash-val" id="hc">$0</div></div>
     <button id="sndBtn" onclick="toggleSound()" style="background:none;border:none;font-size:20px;cursor:pointer;padding:4px;color:var(--muted);line-height:1" title="サウンドON/OFF">🔊</button>
   </div>
+  <div id="eventBanner" style="display:none;position:relative;z-index:50;background:linear-gradient(135deg,#1a1208,var(--bg2));border-bottom:2px solid var(--gold);padding:10px 14px;font-family:var(--fm);font-size:12px"></div>
+  <div id="ticker"><span class="tkl" id="tkLabel">INFO</span><div class="tk-track"><span class="tk-txt" id="tkTxt"></span></div></div>
   <div id="content">
     <!-- DISTILL -->
     <div id="td" class="tab on">
@@ -339,6 +354,7 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--fb);height:10
     <!-- PROFILE -->
     <div id="tp" class="tab">
       <div style="font-family:var(--fd);font-size:18px;font-weight:900;color:var(--gold2);padding:4px 0 8px">プロフィール</div>
+      <div id="dailyPanel" style="display:none;background:var(--panel);border:1px solid var(--gold);border-radius:8px;padding:10px 12px;margin-bottom:10px"></div>
       <div id="loginBanner"></div>
       <div class="ph">
         <div class="pa" id="pAvatar">🥃</div>
@@ -361,6 +377,7 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--fb);height:10
         <div id="tlist" style="display:flex;flex-wrap:wrap;gap:6px"></div>
         <div id="prestigePanel" style="display:none;margin-top:12px;background:linear-gradient(135deg,var(--bg3),var(--panel));border:1px solid var(--gold2);border-radius:10px;padding:14px"></div>
       </div>
+      <div id="storyPanel" style="background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:4px"></div>
       <button class="btn-line" id="btnShare" style="display:none">📤 LINEで共有</button>
       <button class="btn-sec" id="btnExport">💾 セーブをエクスポート</button>
       <button class="btn-sec" id="btnImport">📥 セーブをインポート</button>
@@ -649,7 +666,7 @@ function canEnableAM(id){return canAutoSell(id)&&activeAMCount()<maxAMConcurrent
 // activeAMCount: 現在アクティブな自動製造の数
 function activeAMCount(){return G.am?Object.values(G.am).filter(Boolean).length:0;}
 // maxAMConcurrent: 同時製造スロット数（蒸留所Tierで増加）
-function maxAMConcurrent(){return (DL[(G.dl||1)-1]&&DL[(G.dl||1)-1].slots)||1;}
+function maxAMConcurrent(){const _b=(DL[(G.dl||1)-1]&&DL[(G.dl||1)-1].slots)||1;const _e=((G.prestige&&G.prestige.skills&&G.prestige.skills['ps_am_slot'])||0);return _b+_e;}
 // autoSellInterval: 自動製造インターバル（ミリ秒）
 function autoSellInterval(){
   const bot=G.fac&&G.fac.bottling;
@@ -664,13 +681,14 @@ function cuc(){
 function cv(){
   // タップ収益: 蒸留所総合 × タップ強化Lv × カット品質ボーナス × 地域販売倍率
   const cutB=G._cutBonus||1.0;
-  return BALANCE.TAP_BASE*distMult()*Math.pow(BALANCE.TAP_MUL,G.cl||0)*cutB*saleMult()*(G.prestige&&G.prestige.bonus||1);
+  return BALANCE.TAP_BASE*distMult()*Math.pow(BALANCE.TAP_MUL,G.cl||0)*cutB*saleMult()*(G.prestige&&G.prestige.bonus||1)*getEventMult('tap');
 }
 function fi(id){
   const f=FD.find(x=>x.id===id);if(!f)return 0;
   const s=G.fac&&G.fac[id];if(!s||!s.p||s.l===0)return 0;
   // 受動収益はlevel-based+tierBonus（dm除去: Tier昇格で即座に収益爆発を防ぐ）
-  return f.bi*tierBonus()*Math.pow(BALANCE.FAC_INC_MUL,s.l)*saleMult()*(G.dbgMul||1)*(G.prestige&&G.prestige.bonus||1);
+  const _psMult=1+(((G.prestige&&G.prestige.skills&&G.prestige.skills['ps_passive'])||0)*0.2);
+  return f.bi*tierBonus()*Math.pow(BALANCE.FAC_INC_MUL,s.l)*saleMult()*(G.dbgMul||1)*(G.prestige&&G.prestige.bonus||1)*_psMult*getEventMult('passive');
 }
 function ti(){return FD.reduce((s,f)=>s+fi(f.id),0);}
 
@@ -681,7 +699,8 @@ function facMaxLv(tier){
 function tapMaxLv(){
   // タップ強化上限: Tier×2（Tier1=2, Tier2=4, ..., Tier5=10）
   // ただし BALANCE.MAX_LV を上限とする
-  return Math.min(BALANCE.MAX_LV,(G.dl||1)*2);
+  const _tapCap=((G.prestige&&G.prestige.skills&&G.prestige.skills['ps_tap_cap'])||0)*2;
+  return Math.min(BALANCE.MAX_LV,(G.dl||1)*2+_tapCap);
 }
 
 function fuc(id){
@@ -690,7 +709,9 @@ function fuc(id){
   if(l>=facMaxLv())return Infinity;
   // Tier内相対Lv（Tier1=0-9, Tier2=0-9相当）でコスト計算
   const tierRelLv=l-(G.dl-1)*10;
-  return Math.round(f.bc*distMult()*Math.pow(BALANCE.FAC_COST_MUL,Math.max(0,tierRelLv)));
+  const _fcm=(G.prestige&&G.prestige.skills&&G.prestige.skills['ps_fac_cost'])?0.9:1.0;
+  const _t1m=(G.prestige&&G.prestige.skills&&G.prestige.skills['ps_t1_cost']&&(G.dl||1)===1)?0.7:1.0;
+  return Math.round(f.bc*distMult()*Math.pow(BALANCE.FAC_COST_MUL,Math.max(0,tierRelLv))*_fcm*_t1m);
 }
 function fpc(id){return Math.round(FD.find(x=>x.id===id).pur*distMult());}
 function isUL(id){
@@ -720,11 +741,13 @@ function purFac(id){
 function craft(id){
   const w=WL.find(x=>x.id===id);
   const p=wp(id);
-  const cc=Math.round(p*BALANCE.CRAFT_COST_RATIO);
+  const _craftCostMult=(1-((G.prestige&&G.prestige.skills&&G.prestige.skills['ps_craft_cost'])||0)*0.2)*getEventMult('craftCost');
+  const cc=Math.round(p*BALANCE.CRAFT_COST_RATIO*_craftCostMult);
   if(G.cash<cc){toast('資金不足');closeM();return;}
   G.cash-=cc;G.cash+=p;
   G.te+=p; // gross sales
   G.cw[id]=(G.cw[id]||0)+1;
+  dmProgress('dm_craft');
   if(!G.uw.includes(id))G.uw.push(id);
   chkT();chkUnlocks();
   rall();closeM();
@@ -888,6 +911,10 @@ function tap(e){
   const v=baseV*cMul*critMult;
   const prevUW=G.uw.length;
   G.cash+=v;G.te+=v;G.tt++;
+  dmProgress('dm_tap');
+  if(comboCount>=100)dmProgress('dm_combo');
+  if(critMult>1)dmProgress('dm_crit');
+  if(G._dmProgress){const m=G.daily&&G.daily.missions&&G.daily.missions.find(x=>x.id==='dm_earn');if(m&&!m.done)G._dmProgress['dm_earn']=(G._dmProgress['dm_earn']||0)+v;}
   sndTap(isCrit,critMult);
   if(e){
     const x=e.clientX||(e.touches&&e.touches[0]&&e.touches[0].clientX)||160;
@@ -912,6 +939,7 @@ function upgFac(id){
   const c=fuc(id);
   if(G.cash<c){toast('資金不足');return;}
   G.cash-=c;G.fac[id].l++;
+  dmProgress('dm_upg');
   sndUpgrade();
   chkT();chkUnlocks();rbus();rdistLight();updHdr();
   const _upgName=FD.find(f=>f.id===id).name;
@@ -1332,10 +1360,14 @@ function defState(){
     reputation:0,
     awards:[],
     compCooldowns:{},
-    questDone:[],  // 完了済みクエストID
+    questDone:[],
+daily:{date:'',missions:[],allCleared:false},
+_dmProgress:{},  // 完了済みクエストID
     repHistory:[],   // 評判変動履歴 [{d:delta, reason:str, t:timestamp}]（最大10件）
     amPriority:{},   // 自動製造優先度 {[id]: 1-5}
-    prestige:{level:0,bonus:1.0},   // プレステージ（周回ボーナス）
+    prestige:{level:0,bonus:1.0,skillPoints:0,skills:{},legacyWhiskies:[],totalRuns:0},
+    randomEvent:{lastAt:0,sessionCount:0,active:null},
+    story:{unlocked:[],seenNew:[]},
     auctionCooldown:0,                // 次回オークション可能時刻
   };
 }
@@ -1409,6 +1441,15 @@ function migrate(s){
   if(!s.washMax)s.washMax=100;
   if(!s._cutBonus)s._cutBonus=1.0;
   if(!s.questDone)s.questDone=[];
+if(!s.daily)s.daily={date:'',missions:[],allCleared:false};
+if(!s._dmProgress)s._dmProgress={};
+if(!s.randomEvent)s.randomEvent={lastAt:0,sessionCount:0,active:null};
+if(!s.story)s.story={unlocked:[],seenNew:[]};
+if(!s.prestige)s.prestige={level:0,bonus:1.0,skillPoints:0,skills:{},legacyWhiskies:[],totalRuns:0};
+if(s.prestige&&s.prestige.skillPoints===undefined)s.prestige.skillPoints=0;
+if(s.prestige&&!s.prestige.skills)s.prestige.skills={};
+if(s.prestige&&!s.prestige.legacyWhiskies)s.prestige.legacyWhiskies=[];
+if(s.prestige&&s.prestige.totalRuns===undefined)s.prestige.totalRuns=0;
   if(!s.cut)s.cut={qualBonus:1.0,active:false,progress:0,startTime:null,cutStart:null,cutEnd:null,duration:8000};
   if(!s.rawMaterials)s.rawMaterials={grain:'golden_promise',water:'soft_spring',yeast:'distillery',peat:'unpeated'};
   return s;
@@ -1449,6 +1490,10 @@ function load(){
   try{
     const raw=localStorage.getItem(storageKey());
     G=raw?sanitize(migrateGs(migrate(JSON.parse(raw)))):defState();
+    applyPrestigeSkills();
+    initTicker();
+    // セッションカウンタはリロード毎にリセット（永続化するとイベントが再発火しなくなるバグ防止）
+    if(G.randomEvent)G.randomEvent.sessionCount=0;
   }catch(e){
     console.warn('load failed:',e);
     G=defState();
@@ -1543,6 +1588,7 @@ function autoSellTick(){
     if(G.cash<cc){return;}
     G.cash-=cc; // 製造コストのみ先に引く
     G.cw[w.id]=(G.cw[w.id]||0)+1;
+    dmProgress('dm_craft');
     if(!G.uw.includes(w.id))G.uw.push(w.id);
     const stock=(G.inv[w.id]||0)+1;
     if(stock>=BALANCE.AM_AUTO_SELL_THRESHOLD){
@@ -1701,6 +1747,303 @@ function openHistModal(id){
 
 
 // ===== チュートリアルクエスト =====
+const DAILY_POOL=[
+  {id:'dm_tap',   label:'タップNOT回',    reward:{type:'rep',value:5},   minTier:1,
+   targets:[50,100,200,500],
+   check:(g,id)=>(g._dmProgress&&g._dmProgress[id]||0)},
+  {id:'dm_earn',  label:'$X稼ぐ',          reward:{type:'rep',value:8},   minTier:1,
+   targets:'dynamic',
+   check:(g,id)=>(g._dmProgress&&g._dmProgress[id]||0)},
+  {id:'dm_upg',   label:'施設を強化する',   reward:{type:'rep',value:8},   minTier:1,
+   targets:[1],
+   check:(g,id)=>(g._dmProgress&&g._dmProgress[id]||0)},
+  {id:'dm_craft', label:'ウィスキーN本製造', reward:{type:'rep',value:10},  minTier:1,
+   targets:[1,3,5],
+   check:(g,id)=>(g._dmProgress&&g._dmProgress[id]||0)},
+  {id:'dm_combo', label:'コンボ100以上でタップ', reward:{type:'rep',value:10}, minTier:1,
+   targets:[1],
+   check:(g,id)=>(g._dmProgress&&g._dmProgress[id]||0)},
+  {id:'dm_crit',  label:'クリティカル5回出す', reward:{type:'rep',value:8},  minTier:1,
+   targets:[5],
+   check:(g,id)=>(g._dmProgress&&g._dmProgress[id]||0)},
+  {id:'dm_cask',  label:'樽を1本仕込む',   reward:{type:'rep',value:15},  minTier:2,
+   targets:[1],
+   check:(g,id)=>(g._dmProgress&&g._dmProgress[id]||0)},
+  {id:'dm_blend', label:'ブレンドを完成させる', reward:{type:'rep',value:20}, minTier:3,
+   targets:[1],
+   check:(g,id)=>(g._dmProgress&&g._dmProgress[id]||0)},
+  {id:'dm_comp',  label:'品評会に出品する', reward:{type:'rep',value:25},  minTier:3,
+   targets:[1],
+   check:(g,id)=>(g._dmProgress&&g._dmProgress[id]||0)},
+];
+
+// ===== ランダムイベント定義 (Phase2) =====
+const RAND_EVENTS=[
+  {id:'re_critic',  type:'good',  icon:'🎙️',name:'著名評論家来訪',       effect:{rep:25},             dur:0},
+  {id:'re_export',  type:'good',  icon:'✈️', name:'輸出商談成立',          effect:{cashBonus:'2h'},      dur:0},
+  {id:'re_harvest', type:'good',  icon:'🌾', name:'麦芽豊作',              effect:{passiveMult:1.5},     dur:1800},
+  {id:'re_festival',type:'good',  icon:'🎉', name:'地元の酒祭り',           effect:{allMult:2.0},         dur:3600},
+  {id:'re_rain',    type:'good',  icon:'🌧️', name:'良質な雨水',             effect:{nextCutBonus:1.5},    dur:0},
+  {id:'re_cost_up', type:'bad',   icon:'📈', name:'原料費高騰',             effect:{craftCostMult:1.5},   dur:3600},
+  {id:'re_review',  type:'bad',   icon:'📰', name:'辛口レビュー掲載',       effect:{rep:-10},             dur:0},
+  {id:'re_heat',    type:'bad',   icon:'🌡️', name:'猛暑・エンジェル増加',   effect:{angelShareMult:1.5},  dur:1800},
+  {id:'re_buyout',  type:'choice',icon:'💼', name:'大企業から買収オファー',
+   choices:[{label:'拒否する',effect:{rep:30}},{label:'受諾（cash×3、評判-50）',effect:{cashMult:3,rep:-50}}]},
+  {id:'re_partner', type:'choice',icon:'🤝', name:'ライバルとの協力提案',
+   choices:[{label:'受け入れる（評判+20）',effect:{rep:20}},{label:'断る',effect:{}}]},
+  {id:'re_collab',  type:'choice',icon:'🎨', name:'限定コラボの依頼',
+   choices:[{label:'受ける（評判+40、コスト$100K）',effect:{rep:40,cash:-100000}},{label:'断る',effect:{}}]},
+];
+
+// ===== ストーリーエピソード定義 (Phase3) =====
+const STORY_EPISODES=[
+  {id:'ep1',  title:'はじまりの蒸留',
+   unlock:g=>true,
+   text:'古びた蒸留器の前に立った日のことを、今でも鮮明に覚えている。錆びついたバルブを回すと、パイプが震え、蒸気が細く噴き出した。麦芽の甘い香りが漂い、胸の奥に何か熱いものが込み上げてきた。これが自分の蒸留所だ——そう実感した瞬間、失敗を恐れる気持ちより先に、未来への期待が溢れ出した。小さくても、ここから始まる。'},
+  {id:'ep2',  title:'最初の一杯',
+   unlock:g=>g.te>=1000,
+   text:'初めて瓶詰めしたウィスキーをグラスに注いだ。琥珀色の液体が光を受けてきらりと輝く。恐る恐る口に含むと、荒削りながらも確かな風味が舌に広がった。まだ粗い。それでも、これは自分の手で生み出した一杯だ。地元の酒屋のマスターが「悪くない」と言ってくれた。たった一言で、翌朝も蒸留器に火を入れる理由ができた。'},
+  {id:'ep3',  title:'道具への投資',
+   unlock:g=>Object.values(g.fac||{}).some(f=>f.l>=5),
+   text:'設備を新調する決断は、思いのほか勇気がいった。手持ちの資金をほぼ全て注ぎ込んだ新しい糖化槽は、古い機材の三倍の効率を持つという。職人の手による細かな仕上げを眺めながら、これは道具ではなく相棒だと思った。良い道具は使い手を育てる——師匠の言葉の意味が、ようやく分かった気がした。'},
+  {id:'ep4',  title:'口コミが広がる',
+   unlock:g=>g.te>=100000,
+   text:'SNSで誰かが「地元に面白い蒸留所がある」と投稿した。翌週には見知らぬ客が訪ねてきて、「一本分けてもらえますか」と聞いた。在庫が足りなくて断るしかなかった。悔しかった。でもその悔しさが宝だった。次のバッチから製造量を倍にした。需要があるということは、認められたということだ。'},
+  {id:'ep5',  title:'工場という名の夢',
+   unlock:g=>g.dl>=2,
+   text:'Tier2への昇格審査を通過した日、事務所の窓から工場を見渡した。一年前は自分一人で回していた場所に、今は複数の設備が並んでいる。規模が大きくなるほど、責任も重くなる。それでも怖くない。むしろ楽しみだ。夢が少しずつ形になっていく感覚は、何物にも代えがたい。'},
+  {id:'ep6',  title:'初めての受賞',
+   unlock:g=>(g.awards&&g.awards.length>=1),
+   text:'封筒を開いた手が震えた。地方品評会での銅賞——それでも初めての受賞だ。審査員のコメントには「荒削りだが個性がある」とあった。個性。その言葉を何度も心の中で繰り返した。量産品にはない何かを、自分は持っているのかもしれない。賞状を壁に貼りながら、次は銀賞を狙おうと静かに決めた。'},
+  {id:'ep7',  title:'樽の時間',
+   unlock:g=>(g.casks&&g.casks.length>=1),
+   text:'初めて仕込んだ樽を倉庫に収めた。この中のウィスキーは、何年も時間をかけて熟成していく。自分がいなくても、樽は仕事を続ける。ウィスキー作りとは、時間との共同作業なのだと気づいた。急いでも仕方ない。信じて待つことも、蒸留家の大切な仕事のひとつだ。'},
+  {id:'ep8',  title:'ブレンドの哲学',
+   unlock:g=>(g.blendHistory&&g.blendHistory.length>=1),
+   text:'異なる原酒を合わせると、単体では出なかった香りが生まれる。初めてブレンドに成功した夜、グラスの前でしばらく動けなかった。これは足し算ではなく、掛け算だ。それぞれの個性を活かしながら、新しい何かを創る。ウィスキーも、人も、同じではないかと思った。'},
+  {id:'ep9',  title:'競合との出会い',
+   unlock:g=>g.te>=1000000,
+   text:'業界の交流会で、隣県の老舗蒸留所のオーナーと話した。最初はライバルとして見ていたが、話すうちに彼も同じ悩みを持ち、同じ喜びを知っていることが分かった。良いウィスキーを作りたいという想いは同じだ。帰り道、なぜか競争心より連帯感の方が強くなっていた。'},
+  {id:'ep10', title:'Tier3の壁',
+   unlock:g=>g.dl>=3,
+   text:'Tier3への壁は高かった。資金の調達、設備の刷新、販路の拡大——全てを同時に進めなければならなかった。何度も諦めかけた。それでも踏み留まれたのは、最初の一杯を飲んだあの日の感覚を忘れていなかったからだと思う。壁を越えた先に見える景色は、想像より遥かに広かった。'},
+  {id:'ep11', title:'海外バイヤーの訪問',
+   unlock:g=>g.te>=10000000,
+   text:'海外から商談のメールが届いた時、冗談かと思った。だが担当者は本物だった。試飲を終えた彼は静かに言った——「このウィスキーには物語がある」。数量は少なくても、輸出できることになった。自分の作ったものが海を渡る。それは単なる取引ではなく、文化の橋渡しだと感じた。'},
+  {id:'ep12', title:'職人の誇り',
+   unlock:g=>Object.values(g.fac||{}).some(f=>f.l>=20),
+   text:'設備の限界まで使い込んでいると、機械にも個性が出てくる。この蒸留器は低温に強い、あの樽は香りの乗りが早い——そういう特性を掴んで初めて、本当の意味で道具を使いこなせる。職人とは、道具と対話を続ける人間のことだと、今は思う。'},
+  {id:'ep13', title:'評判という財産',
+   unlock:g=>(g.reputation||0)>=50,
+   text:'評判が高まると、不思議なことが起きるようになった。見知らぬ人から「あそこのウィスキーを一度飲んでみたい」という声が届く。品質を担保し続けることが、最大の広告になる。信頼は一日では築けないが、一度失うと取り戻すのに何倍もの時間がかかる。だから今日も、手を抜かない。'},
+  {id:'ep14', title:'Tier4の境地',
+   unlock:g=>g.dl>=4,
+   text:'ここまで来るとは思っていなかった。Tier4に到達した夜、誰にも言わずに一人で最初期のレシピで蒸留を行った。出来上がったものは、今の技術から見れば素朴そのものだ。でも、その素朴さの中に、全ての原点がある。どれだけ洗練されても、初心を忘れないこと——それが長く続ける秘訣だと気づいた。'},
+  {id:'ep15', title:'帝国の夜明け',
+   unlock:g=>g.dl>=5,
+   text:'Tier5——ウィスキー帝国の頂点に立った。感慨もあるが、それ以上に次の問いが浮かんでくる。ここから先に何がある？　答えはすぐに分かった。頂点は終わりではなく、次の旅の出発点だ。プレステージ、引き継ぎ、そして再び一から積み上げる喜び。蒸留家の物語に、幕はない。'},
+  {id:'ep_s1',title:'コレクターの告白',
+   unlock:g=>g.uw&&WL&&g.uw.length>=WL.length,
+   text:'全ての銘柄を図鑑に収めた者だけが知る話がある。あるコレクターが、生涯をかけて集めたウィスキーを前に言ったという——「飲めないものを集めて何になる」。だが彼はその翌日、一番高価な一本を開けた。味よりも、「ついに飲む日が来た」という安堵の方が大きかったそうだ。珍しさより、美味しさを。',secret:true},
+  {id:'ep_s2',title:'蒸留家の夢',
+   unlock:g=>(g.prestige&&g.prestige.level>=1),
+   text:'一度全てをリセットしてまた始めた者だけが分かることがある。二周目の蒸留は、一周目より確実に速い。それは技術のせいだけではない。何が大切かを知っているから、迷わない。プレステージとは記憶の継承だ。前の自分が残した手がかりを辿りながら、より高みへ向かう旅が始まる。',secret:true},
+  {id:'ep_s3',title:'時間の蒸留',
+   unlock:g=>(g.prestige&&(g.prestige.totalRuns||0)>=3),
+   text:'三度の旅を経た蒸留家は、もはや結果を急がない。一杯のウィスキーが完成するまでの時間を、焦りではなく期待で待てるようになる。樽の中の時間も、人生の時間も、本質は同じだ——ゆっくりと、しかし確実に、何かが深まっていく。それを知っている者だけが、本物の蒸留家と呼ばれる。',secret:true},
+];
+
+// ===== プレステージスキル定義 (Phase4) =====
+const PRESTIGE_SKILLS=[
+  {id:'ps_tap_cap',  name:'タップ強化上限+2',   cost:1, tree:'basic', desc:'タップのMAXレベルが+2上昇'},
+  {id:'ps_passive',  name:'受動収益×1.2',        cost:1, tree:'basic', desc:'全施設の受動収益が1.2倍'},
+  {id:'ps_fac_cost', name:'施設コスト-10%',       cost:2, tree:'basic', desc:'施設強化コストが10%安くなる'},
+  {id:'ps_craft_cost',name:'製造コスト-20%',      cost:1, tree:'craft', desc:'ウィスキー製造コストが20%安くなる'},
+  {id:'ps_aging',    name:'樽熟成速度×1.5',       cost:1, tree:'craft', desc:'樽の熟成が1.5倍速く進む'},
+  {id:'ps_am_slot',  name:'自動製造スロット+1',   cost:2, tree:'craft', desc:'同時自動製造できる銘柄が1つ増える'},
+  {id:'ps_rep_decay',name:'評判減衰 停止',         cost:1, tree:'rep',   desc:'評判の自然減衰がなくなる'},
+  {id:'ps_comp_rate',name:'品評会成功率+15%',     cost:1, tree:'rep',   desc:'品評会の成功確率が15%上昇'},
+  {id:'ps_cooldown', name:'品評会CD-30%',          cost:2, tree:'rep',   desc:'品評会のクールダウンが30%短縮'},
+  {id:'ps_t1_cost',  name:'Tier1施設コスト-30%', cost:1, tree:'speed', desc:'Tier1施設の強化コストが30%安くなる'},
+  {id:'ps_t2_unlock',name:'Tier2解禁費-50%',      cost:1, tree:'speed', desc:'Tier2への昇格コストが50%安くなる'},
+];
+
+// ===== 引き継ぎ銘柄 (Phase4) =====
+const LEGACY_WHISKIES=[
+  {id:'lw_genesis',name:'Genesis Reserve',     unlockRun:1,icon:'🌅',rarity:'★★★',
+   text:'初めての挑戦者だけが知る原酒。一周目の苦労と喜びが染み込んだ、唯一無二の一本。'},
+  {id:'lw_eternal',name:'Eternal Dram',        unlockRun:2,icon:'♾️',rarity:'★★★★',
+   text:'二度目の旅路で生まれた蒸留。経験という名の熟成が、深みと丸みをもたらした。'},
+  {id:'lw_legend', name:'Legend of the Still', unlockRun:3,icon:'🏆',rarity:'★★★★★',
+   text:'三度の蒸留が生む伝説。技術と情熱と時間が結晶した、帝国の証。'},
+];
+
+// ===== ティッカーメッセージ定義 =====
+const TICKER_MSGS=[
+  // health (10)
+  {cat:'health',text:'お酒は20歳になってから。未成年飲酒は法律で禁止されています。'},
+  {cat:'health',text:'飲み過ぎに注意。適度な飲酒量は1日純アルコール20g程度が目安です。'},
+  {cat:'health',text:'妊娠中・授乳中の飲酒は胎児・乳児に影響します。'},
+  {cat:'health',text:'空腹時の飲酒は酔いが回りやすく、体への負担が増えます。'},
+  {cat:'health',text:'お酒を飲んだら絶対に車・バイク・自転車を運転しないでください。'},
+  {cat:'health',text:'飲んだ後は十分な水分補給と睡眠をとりましょう。'},
+  {cat:'health',text:'連続飲酒・毎日の飲酒はアルコール依存症のリスクを高めます。'},
+  {cat:'health',text:'アルコールは睡眠の質を下げます。就寝直前の飲酒は避けましょう。'},
+  {cat:'health',text:'薬を服用中は飲酒前に医師・薬剤師に相談してください。'},
+  {cat:'health',text:'他人への過度な飲酒の強要はやめましょう。イッキ飲みは危険な行為です。'},
+  // tips (50)
+  {cat:'tips',text:'タップ強化は序盤の最優先事項。まず強化してから施設を買い進めよう。'},
+  {cat:'tips',text:'施設は購入しただけでは収益がゼロ。Lvを上げるほど受動収益が増える。'},
+  {cat:'tips',text:'コンボはタップを止めると即リセット。連打を続けるほど収益倍率が高くなる。'},
+  {cat:'tips',text:'製麦室はゲーム開始から所有済み。まず強化してから次の施設購入を検討しよう。'},
+  {cat:'tips',text:'施設の購入順は糖化槽→発酵槽→蒸留釜→熟成庫→ボトリングの順が基本。'},
+  {cat:'tips',text:'タップ強化の上限はTierで決まる。Tier上げのたびに上限が解放される。'},
+  {cat:'tips',text:'「図鑑」タブで解禁した銘柄を確認できる。タップや施設強化で次々と解禁される。'},
+  {cat:'tips',text:'施設の購入コストは蒸留所Tier（地域）が上がるほど高くなる。'},
+  {cat:'tips',text:'右上のスピーカーアイコンでサウンドのON/OFFを切り替えられる。'},
+  {cat:'tips',text:'受動収益は放置中も蓄積される。長時間離れる前に施設をしっかり強化しておこう。'},
+  {cat:'tips',text:'販売地域を拡大すると全体の収益倍率が上昇する。余裕ができたら積極的に購入を。'},
+  {cat:'tips',text:'カット選択ミニゲームでハート部分を正確に切り出すと品質ボーナスが得られる。'},
+  {cat:'tips',text:'評判が高いほど販売単価が上昇する。品評会や施設強化で評判を積み上げよう。'},
+  {cat:'tips',text:'品評会は参加費がかかるが成功すると評判が大きく上昇する。余裕があれば挑戦を。'},
+  {cat:'tips',text:'自動製造は同時に動かせる数に上限がある。優先度設定で高単価銘柄を優先しよう。'},
+  {cat:'tips',text:'販売チャンネルによって単価の倍率が異なる。高倍率チャンネルを解禁すると効率が上がる。'},
+  {cat:'tips',text:'ウィスキーの製造コストは販売価格の一部。コストより売値が高い銘柄を選ぼう。'},
+  {cat:'tips',text:'コンボ倍率は最大10倍まで上昇する。序盤は連打でコンボを稼ぐのが最速の資金調達。'},
+  {cat:'tips',text:'クリティカルタップが発生すると収益が大きく跳ね上がる。コンボ継続中は発生しやすい。'},
+  {cat:'tips',text:'樽熟成はリアル時間が経つほど価値が上がる。早めに仕込んで放置が効果的。'},
+  {cat:'tips',text:'樽の種類によって熟成速度と天使の分け前が異なる。クォーターカスクは速熟成タイプ。'},
+  {cat:'tips',text:'ブレンドはフレーバーレーダーの形を目標に近づけるほど高評価になる。'},
+  {cat:'tips',text:'麦汁は発酵槽のLvが高いほど速く溜まる。バッチ蒸留に備えて溜めておこう。'},
+  {cat:'tips',text:'オークション機能を使うと通常の販売より高値で樽を売却できる場合がある。'},
+  {cat:'tips',text:'自動製造の優先度は「事業」タブで銘柄ごとに設定できる。高優先ほど早く処理される。'},
+  {cat:'tips',text:'品評会のクールダウン中は別の品評会に出品できる。複数を並行して狙おう。'},
+  {cat:'tips',text:'ブレンド履歴は過去の成功レシピを記録している。同じ比率を再現する際に参考に。'},
+  {cat:'tips',text:'カットの品質ボーナスは次の製造タップに反映される。毎回丁寧にカットすると収益が伸びる。'},
+  {cat:'tips',text:'熟成庫のLvが上がるほど同時に仕込める樽のスロットが増える。'},
+  {cat:'tips',text:'Tier昇格には全施設の購入が条件のひとつ。未購入施設がないか「事業」タブで確認しよう。'},
+  {cat:'tips',text:'Tier5に到達するとプレステージが解禁される。全リセットの代わりに恒久ボーナスを獲得。'},
+  {cat:'tips',text:'プレステージ時に獲得できるスキルポイントは3pt。効果をよく読んでから選択しよう。'},
+  {cat:'tips',text:'プレステージしても図鑑の収集記録とストーリーの解禁状況は引き継がれる。'},
+  {cat:'tips',text:'蒸留所の地域（Tier）が上がるほど評判の影響が大きくなる。後半は評判管理が重要。'},
+  {cat:'tips',text:'Tier2以降は出品できる品評会の種類が増える。定期的に確認して上位品評会を狙おう。'},
+  {cat:'tips',text:'プレステージ回数に応じて「引き継ぎ銘柄」が図鑑に永久登録される。周回のモチベーションに。'},
+  {cat:'tips',text:'周回2回目以降はスキルボーナスが積み上がり、施設への投資効率が大きく改善する。'},
+  {cat:'tips',text:'Tier昇格直後は施設Lvがそのまま引き継がれる。コストが増えても既存Lvは無駄にならない。'},
+  {cat:'tips',text:'プレステージスキル「速攻ツリー」はTier1〜2の序盤を大幅に短縮できる。'},
+  {cat:'tips',text:'評判は自然にわずかずつ減衰する。定期的に品評会や施設強化で補充しよう。'},
+  {cat:'tips',text:'ランダムイベントは5分以上間隔を置いて発生する。CHOICEは内容をよく読んで選択しよう。'},
+  {cat:'tips',text:'BAD EVENTは一定時間、収益や製造コストに影響する。効果が切れるまで待つのも戦略。'},
+  {cat:'tips',text:'GOOD EVENTの「地元の酒祭り」は全収益が1時間2倍になる強力なバフ。タップしまくろう。'},
+  {cat:'tips',text:'ストーリー「蒸留所の歩み」はゲームの進行に応じて自動解禁される。プロフタブで読めるよ。'},
+  {cat:'tips',text:'秘話エピソードはコンプリートやプレステージなど特定の実績を達成した人だけが読める。'},
+  {cat:'tips',text:'デイリーミッションは毎日0時にリセットされる。全達成で評判+30のボーナスあり。'},
+  {cat:'tips',text:'評判が高いほど品評会の合格ラインに届きやすくなる。低評判では落選しやすい。'},
+  {cat:'tips',text:'ランダムイベントは1セッション最大5回まで発生する。再起動するとカウントがリセットされる。'},
+  {cat:'tips',text:'プロフタブの称号は各種実績を解禁した証。コンプリートを目指してみよう。'},
+  // trivia (100)
+  {cat:'trivia',text:'ウィスキーの語源はケルト語の「命の水（Uisce Beatha）」。ラテン語のAqua Vitaeが起源。'},
+  {cat:'trivia',text:'蒸留酒の技術はアラビアの錬金術師が発展させ、12世紀頃にヨーロッパへ伝わった。'},
+  {cat:'trivia',text:'スコットランドで蒸留の記録が残る最古の文書は1494年。麦芽8ボールから蒸留したと記録されている。'},
+  {cat:'trivia',text:'アイルランドでも同時期に蒸留の記録があり、スコットランドとの発祥論争は今も続く。'},
+  {cat:'trivia',text:'17世紀、イギリス政府が蒸留に課税を始めたことでスコットランドでは密造蒸留が盛んになった。'},
+  {cat:'trivia',text:'密造業者たちは税務官の目を避け山中で蒸留した。この経験がスコッチの製法を洗練させた。'},
+  {cat:'trivia',text:'アメリカのバーボンはケンタッキー州が発祥とされ、バーボン郡の名が由来といわれている。'},
+  {cat:'trivia',text:'アメリカの禁酒法（1920〜1933年）はウィスキー産業を壊滅させたが密造酒文化を生んだ。'},
+  {cat:'trivia',text:'禁酒法時代にカナダのウィスキーがアメリカへ大量に密輸され、カナディアンウィスキーが発展した。'},
+  {cat:'trivia',text:'日本でのウィスキー製造は1923年、京都・山崎に初の蒸留所が設立されたことで本格化した。'},
+  {cat:'trivia',text:'第二次世界大戦中、スコットランドの多くの蒸留所は軍需向けアルコール製造に転換を迫られた。'},
+  {cat:'trivia',text:'1960〜70年代はスコッチウィスキーの黄金時代。蒸留所が急増し世界輸出量が急拡大した。'},
+  {cat:'trivia',text:'1980年代の不況でスコッチ産業は大打撃を受け、多くの蒸留所が閉鎖または休止した。'},
+  {cat:'trivia',text:'アイリッシュウィスキーは一時絶滅寸前まで衰退したが、1990年代以降に劇的な復活を遂げた。'},
+  {cat:'trivia',text:'ウィスキーの国際的な定義は各国の法律で異なり、熟成年数・原料・樽の種類などに規定がある。'},
+  {cat:'trivia',text:'スコッチウィスキーは最低3年の樽熟成が法律で義務付けられている。'},
+  {cat:'trivia',text:'バーボンには新品の内側を焦がしたオーク樽を使用するという法的規定がある。'},
+  {cat:'trivia',text:'ジャパニーズウィスキーは2021年に業界自主基準が設けられ、国内原料・熟成の定義が明確化された。'},
+  {cat:'trivia',text:'テネシーウィスキーはサトウカエデの炭でろ過するチャコール・メロウイングが特徴。'},
+  {cat:'trivia',text:'アイルランドの修道院が蒸留技術の普及に重要な役割を果たしたという説が広く知られている。'},
+  {cat:'trivia',text:'スコッチウィスキーの5大産地はスペイサイド・ハイランド・アイラ・ローランド・キャンベルタウン。'},
+  {cat:'trivia',text:'スペイサイドはスコットランド最多の蒸留所が集中する地域。フルーティで花のような香りが特徴。'},
+  {cat:'trivia',text:'アイラ島はスモーキーで力強いウィスキーで有名。ピートが豊富な土地柄が個性を生む。'},
+  {cat:'trivia',text:'ハイランドはスコットランド最大の産地。地域が広いため味わいのスタイルに幅がある。'},
+  {cat:'trivia',text:'ローランドは比較的軽やかでマイルドなウィスキーが多い。三回蒸留の蒸留所もある。'},
+  {cat:'trivia',text:'キャンベルタウンはかつて30以上の蒸留所を擁した「ウィスキーの首都」。現在は数か所のみ残る。'},
+  {cat:'trivia',text:'アイルランドのウィスキーは一般的に3回蒸留されるためなめらかな口当たりが特徴。'},
+  {cat:'trivia',text:'バーボンの主産地ケンタッキー州はライムストーン層を通る良質な水が製造に適している。'},
+  {cat:'trivia',text:'台湾はアジアの新興ウィスキー産地として注目を集めている。温暖な気候が急速な熟成を促す。'},
+  {cat:'trivia',text:'オーストラリアやニュージーランドでもクラフト蒸留所が急増し独自スタイルのウィスキーが生まれている。'},
+  {cat:'trivia',text:'スウェーデン・デンマーク・フランスなど欧州各国でもウィスキー製造が盛んになっている。'},
+  {cat:'trivia',text:'カナディアンウィスキーはライ麦を多く使うものが多く、スパイシーな風味が特徴。'},
+  {cat:'trivia',text:'アイラ島のピートは海藻質を多く含むため他地域とは異なる磯のような香りをもたらす。'},
+  {cat:'trivia',text:'スペイサイドのリベット川周辺は「ゴールデン・トライアングル」と呼ばれウィスキーの聖地とされる。'},
+  {cat:'trivia',text:'キャンベルタウンは大西洋に面した港町で、かつては海運でウィスキーを世界へ輸出していた。'},
+  {cat:'trivia',text:'日本の蒸留所はスコットランドの製法を参考にしつつ日本固有の素材や気候で独自性を生み出している。'},
+  {cat:'trivia',text:'ウェールズには独自のウィスキー産業があり、スコッチとは異なる伝統的製法を持つ蒸留所もある。'},
+  {cat:'trivia',text:'アメリカのライウィスキーはライ麦比率51%以上の原料規定がある。'},
+  {cat:'trivia',text:'インドはウィスキーの消費量が世界最大級の国で、国内ウィスキー生産も急拡大している。'},
+  {cat:'trivia',text:'ウィスキーの主原料は大麦・ライ麦・トウモロコシ・小麦などの穀物。'},
+  {cat:'trivia',text:'モルトウィスキーは大麦麦芽（モルト）のみを原料とするウィスキー。'},
+  {cat:'trivia',text:'グレーンウィスキーはトウモロコシや小麦などを主原料とし連続式蒸留器で製造する。'},
+  {cat:'trivia',text:'ブレンデッドウィスキーはモルトウィスキーとグレーンウィスキーを混合したもの。'},
+  {cat:'trivia',text:'ピートとは泥炭のこと。麦芽をピートの煙で乾燥させるとスモーキーな香りが付く。'},
+  {cat:'trivia',text:'麦芽の製造工程（モルティング）では大麦を水に浸して発芽させその後乾燥させる。'},
+  {cat:'trivia',text:'発酵工程では麦汁に酵母を加えてアルコールを生成する。通常48〜72時間かけて行われる。'},
+  {cat:'trivia',text:'ポットスチル（単式蒸留器）は銅製の壺型蒸留器。形状が香味成分に大きく影響する。'},
+  {cat:'trivia',text:'蒸留器の形状・高さ・ネックの角度によって最終的なウィスキーの香りと風味が変わる。'},
+  {cat:'trivia',text:'カットとは蒸留液をフォアショット・ハート・フェインツに分ける工程のこと。'},
+  {cat:'trivia',text:'ハート部分のみが熟成に使われる。フォアショットとフェインツは再蒸留に回される。'},
+  {cat:'trivia',text:'新蒸留液（ニューメイク）は無色透明。樽で熟成することで色と風味が生まれる。'},
+  {cat:'trivia',text:'ウィスキーの琥珀色はほぼ全て樽由来。着色料を添加するものも一部存在し表示義務がある。'},
+  {cat:'trivia',text:'樽の内側を焦がす（チャーリング）ことでウッディな甘みやバニラ香が抽出されやすくなる。'},
+  {cat:'trivia',text:'シェリー樽はスペインのシェリーワインを熟成した後の樽。フルーティで甘い香りを与える。'},
+  {cat:'trivia',text:'バーボン樽は使い終わったバーボン用樽をスコッチ等が再利用する。バニラやキャラメル香が特徴。'},
+  {cat:'trivia',text:'小さい樽ほど液体と木材の接触面積が大きいため熟成が速く進む。'},
+  {cat:'trivia',text:'熟成中に毎年1〜2%程度のウィスキーが蒸発する。これが「天使の分け前（Angels Share）」。'},
+  {cat:'trivia',text:'天使の分け前は温暖な気候ほど多く、熱帯地域では年間8〜10%蒸発することもある。'},
+  {cat:'trivia',text:'シングルモルトとは一つの蒸留所のモルトウィスキーのみを使ったもの。複数の樽をヴァッティングしてよい。'},
+  {cat:'trivia',text:'シングルカスクは単一の樽から瓶詰めしたウィスキー。同じ銘柄でも樽ごとに味が異なる。'},
+  {cat:'trivia',text:'カスクストレングスは加水せずに瓶詰めしたウィスキー。アルコール度数が高めになる。'},
+  {cat:'trivia',text:'ウィスキーは瓶に詰めた後は熟成が進まない。熟成はあくまでも樽の中でのみ行われる。'},
+  {cat:'trivia',text:'スコッチの熟成年数表記は使用した原酒の中で最も若い年数を表示する義務がある。'},
+  {cat:'trivia',text:'NAS（No Age Statement）は熟成年数を表示しないウィスキー。若い原酒の活用が背景にある。'},
+  {cat:'trivia',text:'ストレートで飲む場合、少量の水（スプラッシュ）を加えると香りが開く場合がある。'},
+  {cat:'trivia',text:'ウィスキーを水と1:1で割る「トワイスアップ」はスコットランド伝統のテイスティングスタイル。'},
+  {cat:'trivia',text:'ロック（オンザロック）は大きい氷ほど溶けにくく、風味を損ないにくい。'},
+  {cat:'trivia',text:'ハイボールは炭酸水と1:3〜4が基本比率。あまり混ぜすぎないと炭酸が長持ちする。'},
+  {cat:'trivia',text:'テイスティンググラス（チューリップ型）は香りを閉じ込めやすく評価に適している。'},
+  {cat:'trivia',text:'ウィスキーを口に含む前に香りをじっくり楽しむと風味の全体像がつかみやすい。'},
+  {cat:'trivia',text:'冷やしすぎると香りが飛びやすくなる。スモーキーや樽香を楽しみたいなら常温近くで飲むとよい。'},
+  {cat:'trivia',text:'ミントジュレップはバーボンをベースにしたカクテル。ミントと砂糖を合わせたアメリカの伝統的な飲み物。'},
+  {cat:'trivia',text:'ホットウィスキートディはウィスキーをお湯で割りレモンや蜂蜜を加えた飲み物。体が温まる。'},
+  {cat:'trivia',text:'日本の水割りスタイルは食事と合わせやすく、長い時間かけてゆっくり飲むのに向いている。'},
+  {cat:'trivia',text:'ピーティーなウィスキーは海鮮料理との相性が良いとされる。燻煙と魚介の旨みが共鳴する。'},
+  {cat:'trivia',text:'フルーティーなウィスキーはデザートと合わせると互いの甘みが引き立ちやすい。'},
+  {cat:'trivia',text:'アルコール度数40〜43%は多くの市場向けに加水調整された標準的な度数。飲みやすさとのバランスをとっている。'},
+  {cat:'trivia',text:'テイスティングでは鼻・口・後味の三段階で評価するのが基本。余韻の長さも重要な指標になる。'},
+  {cat:'trivia',text:'チョコレートはウィスキーの甘みや樽香と相性が抜群。ダークチョコレートとの組み合わせが定番。'},
+  {cat:'trivia',text:'スモークサーモンはスモーキーなウィスキーと素晴らしく合う。ピーティーなタイプに特におすすめ。'},
+  {cat:'trivia',text:'熟成チーズはウィスキーの旨みを引き立てる。チェダーやゴーダなど硬質系がよく合う。'},
+  {cat:'trivia',text:'ナッツ類はウィスキーの友。クルミはスパイシーな銘柄に、アーモンドはフルーティーな銘柄に合いやすい。'},
+  {cat:'trivia',text:'ドライフルーツはウィスキーの甘みと調和しやすい。レーズンやイチジクが特に相性がよい。'},
+  {cat:'trivia',text:'燻製系の食材はウィスキーと相性が良い傾向がある。スモーキーな風味同士が共鳴する。'},
+  {cat:'trivia',text:'牡蠣はアイラウィスキーとの相性で有名。潮の香りとピートが溶け合うと言われる。'},
+  {cat:'trivia',text:'和食の出汁系の料理はジャパニーズウィスキーと相性が良いとされる。旨みが共鳴する。'},
+  {cat:'trivia',text:'ジャーキーや塩気の強い肉系スナックはバーボンの甘みと対照的に合うと言われる。'},
+  {cat:'trivia',text:'ブルーチーズのクセはスモーキーなウィスキーと互いを引き立て合う組み合わせ。'},
+  {cat:'trivia',text:'ダークフルーツケーキはシェリー樽熟成のウィスキーと味わいの方向性が一致することが多い。'},
+  {cat:'trivia',text:'蕎麦はジャパニーズウィスキーのハイボールと合わせる食文化が日本にある。'},
+  {cat:'trivia',text:'生ハムはフルーティーなウィスキーと塩気・旨みが調和しやすい。'},
+  {cat:'trivia',text:'オリーブはハーブ香のあるウィスキーと合わせると地中海的な風味のペアリングになる。'},
+  {cat:'trivia',text:'焼き鳥の塩は淡麗なハイボールと、タレはバーボンのようなリッチな甘みと合わせやすい。'},
+  {cat:'trivia',text:'ポップコーンはバーボンの甘いバニラ香と意外なほど相性が良い手軽なおつまみ。'},
+  {cat:'trivia',text:'甘みが強いウィスキーと塩キャラメルの組み合わせはコントラストが楽しめる。'},
+  {cat:'trivia',text:'梅干しや酸味のある漬物はジャパニーズウィスキーと合わせる日本独自のペアリング。'},
+  {cat:'trivia',text:'ソーセージや豚肉加工品はスパイシーなライウィスキーやバーボンとの相性が良いとされる。'},
+  {cat:'trivia',text:'ウィスキーとおつまみのペアリングに正解はない。自分の好みの組み合わせを探すこと自体が楽しみ。'},
+  {cat:'tips',  text:'ゲームを再起動するとランダムイベントのセッションカウントがリセットされる。'},
+  {cat:'trivia',text:'ウィスキーカスクの標準単位「バレル」は約200リットル。樽のサイズが熟成スピードと風味に影響する。'},
+  {cat:'trivia',text:'ウィスキーの味わいを表現する言葉は多様で、フルーティ・スモーキー・スパイシー・フローラルなどがある。'},
+];
 const QUESTS=[
   {id:'q_tap10',    label:'10回タップしよう',         check:()=>(G.tt||0)>=10,      reward:'コンボの仕組みを習得！'},
   {id:'q_buy_mash', label:'糖化槽を購入しよう($200)', check:()=>G.fac&&G.fac.mashing&&G.fac.mashing.p, reward:'受動収益が増加！'},
@@ -1709,6 +2052,355 @@ const QUESTS=[
   {id:'q_100k',     label:'$100Kを貯めよう',           check:()=>(G.cash||0)>=100000, reward:'Tier1折り返し地点！'},
 ];
 
+// ===== デイリーミッション =====
+function getTodayStr(){
+  const d=new Date();
+  return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();
+}
+
+function generateDailyMissions(){
+  if(!G.daily)G.daily={date:'',missions:[],allCleared:false};
+  const today=getTodayStr();
+  if(G.daily.date===today)return; // 既に生成済み
+  G._dmProgress={};
+  const eligible=DAILY_POOL.filter(p=>p.minTier<=(G.dl||1));
+  const shuffled=eligible.sort(()=>Math.random()-0.5).slice(0,3);
+  G.daily.missions=shuffled.map(p=>{
+    let target;
+    if(p.targets==='dynamic'){
+      target=Math.round(ti()*2)||5000; // 受動収益2時間分
+    }else{
+      target=p.targets[Math.min(Math.floor((G.dl-1)/2),p.targets.length-1)];
+    }
+    const label=p.label.replace('NOT回',target+'回').replace('$X',fmt(target)).replace('N本',target+'本');
+    return {id:p.id,label,target,progress:0,done:false,reward:p.reward};
+  });
+  G.daily.date=today;
+  G.daily.allCleared=false;
+  save();
+  renderDailyPanel();
+}
+
+function tickDailyMissions(){
+  if(!G.daily||!G.daily.missions)return;
+  G.daily.missions.forEach(m=>{
+    if(m.done)return;
+    m.progress=G._dmProgress&&G._dmProgress[m.id]||0;
+    if(m.progress>=m.target){
+      m.done=true;
+      if(m.reward.type==='rep')changeRep(m.reward.value,'デイリーミッション達成');
+      toast('📅 ミッション達成: '+m.label+'！ 評判+'+m.reward.value,4000);
+      sndQuest();
+      save();
+      renderDailyPanel();
+      // 全達成チェック
+      if(!G.daily.allCleared&&G.daily.missions.every(x=>x.done)){
+        G.daily.allCleared=true;
+        changeRep(30,'デイリー全達成ボーナス');
+        toast('🌟 デイリーミッション全達成！ 評判+30',5000);
+        save();
+      }
+    }
+  });
+}
+
+function dmProgress(id,amount){
+  if(!G._dmProgress)G._dmProgress={};
+  G._dmProgress[id]=(G._dmProgress[id]||0)+(amount||1);
+}
+
+function renderDailyPanel(){
+  const el=$('dailyPanel');if(!el)return;
+  if(!G.daily||!G.daily.missions||!G.daily.missions.length){
+    el.style.display='none';return;
+  }
+  el.style.display='block';
+  const now=new Date();
+  const nextReset=new Date();nextReset.setDate(now.getDate()+1);nextReset.setHours(0,0,0,0);
+  const secLeft=Math.max(0,Math.floor((nextReset-now)/1000));
+  const hLeft=Math.floor(secLeft/3600),mLeft=Math.floor((secLeft%3600)/60);
+  const allDone=G.daily.missions.every(m=>m.done);
+  el.innerHTML='<div style="font-family:var(--fm);font-size:10px;color:var(--gold);letter-spacing:.08em;margin-bottom:8px">📅 デイリーミッション <span style="color:var(--muted);font-size:9px">リセット: '+hLeft+'h'+mLeft+'m後</span></div>'+
+    G.daily.missions.map(m=>{
+      const pct=Math.min(100,Math.round(m.progress/m.target*100));
+      return '<div style="margin-bottom:8px;padding:8px;background:var(--bg3);border-radius:6px;border:1px solid '+(m.done?'var(--green)':'var(--border)')+'">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'
+        +'<span style="font-family:var(--fm);font-size:11px;color:'+(m.done?'var(--green)':'var(--text2)')+'">'+escapeHtml(m.label)+'</span>'
+        +'<span style="font-family:var(--fm);font-size:10px;color:var(--muted)">評判+'+m.reward.value+'</span></div>'
+        +'<div style="display:flex;align-items:center;gap:6px">'
+        +'<div style="flex:1;background:var(--bg2);border-radius:3px;height:4px"><div style="width:'+pct+'%;height:100%;background:'+(m.done?'var(--green)':'var(--amber)')+';border-radius:3px"></div></div>'
+        +'<span style="font-family:var(--fm);font-size:9px;color:var(--muted)">'+Math.min(m.progress,m.target)+'/'+m.target+'</span>'
+        +'</div></div>';
+    }).join('')+
+    (allDone?'<div style="font-family:var(--fm);font-size:11px;color:var(--green);text-align:center;margin-top:4px">✓ 全達成！ 評判+30 獲得済み</div>':'');
+}
+
+
+// ===== Phase2: ランダムイベント関数群 =====
+function getEventMult(type){
+  const a=G.randomEvent&&G.randomEvent.active;
+  if(!a)return 1;
+  const e=a.effect||{};
+  if(type==='passive'){if(e.passiveMult)return e.passiveMult;if(e.allMult)return e.allMult;}
+  if(type==='tap'){if(e.allMult)return e.allMult;}
+  if(type==='craftCost'){if(e.craftCostMult)return e.craftCostMult;}
+  return 1;
+}
+function tryTriggerRandomEvent(){
+  if(!G.randomEvent)G.randomEvent={lastAt:0,sessionCount:0,active:null};
+  if(G.randomEvent.active)return;
+  const now=Date.now();
+  if(now-G.randomEvent.lastAt<5*60*1000)return; // 最低5分間隔
+  if(G.randomEvent.sessionCount>=5)return;       // 1セッション最大5回
+  if(Math.random()>0.01)return;                  // 2s毎に1%確率
+  const ev=RAND_EVENTS[Math.floor(Math.random()*RAND_EVENTS.length)];
+  G.randomEvent.lastAt=now;
+  G.randomEvent.sessionCount++;
+  showEventBanner(ev);
+}
+function applyEventEffect(ev,choiceIdx){
+  const effect=ev.type==='choice'?ev.choices[choiceIdx].effect:ev.effect;
+  if(!effect)return;
+  if(effect.rep!==undefined)changeRep(effect.rep,ev.name);
+  if(effect.cash!==undefined)G.cash=Math.max(0,G.cash+effect.cash);
+  if(effect.cashBonus==='2h'){G.cash+=ti()*2;toast(ev.icon+' 2時間分の収益を獲得！',4000);}
+  if(effect.cashMult)G.cash*=effect.cashMult;
+  if(effect.nextCutBonus){G._cutBonus=Math.max(G._cutBonus||1.0,effect.nextCutBonus);toast(ev.icon+' 次回カットボーナス×'+effect.nextCutBonus,3000);}
+  if(ev.dur>0){G.randomEvent.active={id:ev.id,effect,expiresAt:Date.now()+ev.dur*1000};}
+  save();
+}
+function showEventBanner(ev){
+  const el=document.getElementById('eventBanner');if(!el)return;
+  const col=ev.type==='good'?'var(--green)':ev.type==='bad'?'var(--red)':'var(--gold)';
+  const lbl=ev.type==='good'?'GOOD EVENT':ev.type==='bad'?'BAD EVENT':'CHOICE';
+  let h=`<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    <span style="font-size:24px">${ev.icon}</span>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:9px;color:${col};letter-spacing:.1em;font-family:var(--fm)">${lbl}</div>
+      <div style="font-size:13px;color:var(--cream);font-family:var(--fd);font-weight:700">${escapeHtml(ev.name)}</div>
+    </div>`;
+  if(ev.type==='choice'){
+    ev.choices.forEach((c,i)=>{
+      h+=`<button onclick="handleEventChoice(${i})" style="background:var(--bg3);border:1px solid var(--gold);border-radius:6px;padding:6px 10px;font-family:var(--fm);font-size:11px;color:var(--gold2);cursor:pointer;white-space:nowrap">${escapeHtml(c.label)}</button>`;
+    });
+  }else{
+    applyEventEffect(ev,0);
+    if(ev.dur>0){h+=`<span style="font-family:var(--fm);font-size:10px;color:var(--muted)">${Math.round(ev.dur/60)}分間有効</span>`;}
+    h+=`<button onclick="dismissEvent()" style="background:none;border:1px solid var(--muted);border-radius:6px;padding:6px 10px;font-family:var(--fm);font-size:11px;color:var(--muted);cursor:pointer">了解</button>`;
+  }
+  h+='</div>';
+  el.innerHTML=h;el.style.display='block';el._ev=ev;
+}
+function handleEventChoice(idx){
+  const el=document.getElementById('eventBanner');if(!el||!el._ev)return;
+  applyEventEffect(el._ev,idx);
+  toast(el._ev.icon+' '+escapeHtml(el._ev.choices[idx].label),3000);
+  dismissEvent();
+}
+function dismissEvent(){
+  const el=document.getElementById('eventBanner');
+  if(el){el.style.display='none';el._ev=null;}
+}
+function tickActiveEvent(){
+  if(!G.randomEvent||!G.randomEvent.active)return;
+  if(Date.now()>=G.randomEvent.active.expiresAt){
+    const name=(RAND_EVENTS.find(e=>e.id===G.randomEvent.active.id)||{}).name||'イベント';
+    G.randomEvent.active=null;
+    toast('イベント終了: '+name,2000);
+    save();
+  }
+}
+
+// ===== Phase3: ストーリーライン関数群 =====
+function checkStoryUnlocks(){
+  if(!G.story)G.story={unlocked:[],seenNew:[]};
+  let found=false;
+  STORY_EPISODES.forEach(ep=>{
+    if(G.story.unlocked.includes(ep.id))return;
+    try{if(ep.unlock(G)){G.story.unlocked.push(ep.id);found=true;toast('📖 新エピソード解禁: '+ep.title,4000);}}catch(e){}
+  });
+  if(found){
+    save();
+    const unread=G.story.unlocked.filter(id=>!G.story.seenNew.includes(id));
+    const btn=document.querySelector('.nb[data-tab="tp"]');
+    if(btn){
+      let badge=btn.querySelector('.story-badge');
+      if(unread.length>0){
+        if(!badge){badge=document.createElement('span');badge.className='story-badge';
+          badge.style.cssText='position:absolute;top:6px;right:6px;background:var(--red);border-radius:50%;width:8px;height:8px;display:block';btn.appendChild(badge);}
+      }else{if(badge)badge.remove();}
+    }
+    renderStoryPanel();
+  }
+}
+function renderStoryPanel(){
+  const el=document.getElementById('storyPanel');if(!el)return;
+  if(!G.story||!G.story.unlocked||!G.story.unlocked.length){
+    el.innerHTML='<div style="font-family:var(--fm);font-size:11px;color:var(--muted);text-align:center;padding:8px">📖 蒸留所の物語はまだ始まっていない</div>';
+    return;
+  }
+  const unread=G.story.unlocked.filter(id=>!G.story.seenNew.includes(id));
+  let h='<div style="font-family:var(--fd);font-size:14px;color:var(--cream);font-weight:700;margin-bottom:10px">📖 蒸留所の歩み '
+    +'<span style="font-family:var(--fm);font-size:10px;color:var(--muted)">('+G.story.unlocked.length+'/'+STORY_EPISODES.length+'話)</span>'
+    +(unread.length?'<span style="font-family:var(--fm);font-size:10px;color:var(--red);margin-left:6px">NEW '+unread.length+'</span>':'')+'</div>';
+  G.story.unlocked.forEach(id=>{
+    const ep=STORY_EPISODES.find(e=>e.id===id);if(!ep)return;
+    const isnew=!G.story.seenNew.includes(id);
+    h+='<div onclick="openStoryModal(\'' +id+ '\')" style="margin-bottom:6px;padding:8px 10px;background:var(--bg3);border-radius:6px;border:1px solid '+(isnew?'var(--gold)':'var(--border)')+';cursor:pointer;display:flex;align-items:center;gap:8px">'
+      +(ep.secret?'<span style="font-size:14px">🔒</span>':'<span style="font-size:14px">📜</span>')
+      +'<span style="font-family:var(--fd);font-size:12px;color:var(--cream);flex:1">'+escapeHtml(ep.title)+'</span>'
+      +(isnew?'<span style="font-family:var(--fm);font-size:9px;color:var(--red);border:1px solid var(--red);border-radius:3px;padding:1px 4px">NEW</span>':'')
+      +'</div>';
+  });
+  el.innerHTML=h;
+}
+function openStoryModal(epId){
+  const ep=STORY_EPISODES.find(e=>e.id===epId);if(!ep)return;
+  if(!G.story)G.story={unlocked:[],seenNew:[]};
+  if(!G.story.seenNew.includes(epId)){G.story.seenNew.push(epId);save();}
+  const unread=G.story.unlocked.filter(id=>!G.story.seenNew.includes(id));
+  const btn=document.querySelector('.nb[data-tab="tp"]');
+  if(btn){const badge=btn.querySelector('.story-badge');if(badge&&!unread.length)badge.remove();}
+  const mo=document.getElementById('mo'),mc2=document.getElementById('mc2');
+  if(!mo||!mc2)return;
+  mc2.innerHTML=`<div class="mt">${escapeHtml(ep.title)}</div>
+    <div class="ms">${ep.secret?'🔒 秘話':'📜 蒸留所の歩み'}</div>
+    <div style="font-family:var(--fb);font-size:14px;color:var(--text2);line-height:1.9;margin-top:8px">${escapeHtml(ep.text)}</div>`;
+  mo.classList.remove('h');
+  renderStoryPanel();
+}
+
+// ===== Phase4: プレステージ拡充関数群 =====
+function getPrestigeSkillEffect(skillId){
+  return (G.prestige&&G.prestige.skills&&G.prestige.skills[skillId])||0;
+}
+function applyPrestigeSkills(){
+  // 参照型で適用しているため init 時の特別処理は不要。将来の拡張用フック。
+}
+// ===== ティッカー =====
+let _tkHistory=[];
+const _TK_HIST=8;
+function initTicker(){
+  if(!document.getElementById('tkTxt'))return;
+  _tkHistory=[];
+  nextTicker();
+}
+function nextTicker(){
+  const el=document.getElementById('tkTxt');
+  const lb=document.getElementById('tkLabel');
+  if(!el||!lb)return;
+  // 直近8件を除外してランダム選択
+  let idx,tries=0;
+  do{idx=Math.floor(Math.random()*TICKER_MSGS.length);tries++;}
+  while(_tkHistory.includes(idx)&&tries<50);
+  _tkHistory.push(idx);
+  if(_tkHistory.length>_TK_HIST)_tkHistory.shift();
+  const msg=TICKER_MSGS[idx];
+  // ラベル更新
+  lb.className='tkl '+msg.cat;
+  lb.textContent=msg.cat==='health'?'健康':'tips'===msg.cat?'TIPS':'豆知識';
+  // テキスト更新・アニメーションリセット
+  el.classList.remove('run');
+  el.textContent=msg.text;
+  // 速度: 文字数×55ms、最小12s、最大30s
+  const dur=Math.max(12,Math.min(30,msg.text.length*0.055));
+  el.style.setProperty('--tk-dur',dur+'s');
+  // tk-track の実幅をpxで取得してアニメーション開始位置をセット（100vwより正確）
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    const track=document.querySelector('.tk-track');
+    const startPx=track?track.offsetWidth:window.innerWidth;
+    el.style.setProperty('--tk-start', startPx+'px');
+    el.classList.add('run');
+    el.addEventListener('animationend',nextTicker,{once:true});
+  }));
+}
+
+function openPrestigeModal(){
+  if(!canPrestige()){toast('プレステージ条件未達成',3000);return;}
+  const mo=document.getElementById('mo'),mc2=document.getElementById('mc2');
+  if(!mo||!mc2)return;
+  const gainPts=3;
+  const prevPts=(G.prestige&&G.prestige.skillPoints)||0;
+  const totalPts=prevPts+gainPts;
+  let selSkills={},usedPts=0;
+
+  function renderPModal(){
+    const treeLabel={basic:'基礎強化',craft:'製造特化',rep:'評判特化',speed:'速攻'};
+    const trees=[...new Set(PRESTIGE_SKILLS.map(s=>s.tree))];
+    let sh='';
+    trees.forEach(tr=>{
+      sh+=`<div style="font-family:var(--fm);font-size:10px;color:var(--gold);margin:10px 0 5px;letter-spacing:.06em">${treeLabel[tr]||tr}</div>`;
+      PRESTIGE_SKILLS.filter(s=>s.tree===tr).forEach(sk=>{
+        const own=(G.prestige&&G.prestige.skills&&G.prestige.skills[sk.id])||0;
+        const sel=selSkills[sk.id]||0;
+        const canAdd=usedPts+sk.cost<=totalPts;
+        sh+=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;padding:8px;background:var(--bg3);border-radius:6px;border:1px solid ${sel?'var(--gold)':'var(--border)'}">
+          <div style="flex:1;min-width:0">
+            <div style="font-family:var(--fd);font-size:12px;color:var(--cream)">${sk.name}${own?' <span style="color:var(--amber);font-size:10px">取得済×'+own+'</span>':''}</div>
+            <div style="font-family:var(--fm);font-size:10px;color:var(--muted)">${sk.desc} | ${sk.cost}pt</div>
+          </div>
+          ${sel?`<button onclick="window._rmSk('${sk.id}',${sk.cost})" style="background:var(--bg2);border:1px solid var(--red);border-radius:4px;padding:2px 8px;color:var(--red);font-size:12px;cursor:pointer">-</button>`:''}
+          <button onclick="window._addSk('${sk.id}',${sk.cost})" ${canAdd?'':'disabled'} style="background:${canAdd?'var(--amber)':'var(--bg2)'};border:none;border-radius:4px;padding:2px 8px;color:${canAdd?'#1a1208':'var(--muted)'};font-size:12px;cursor:${canAdd?'pointer':'default'}">+</button>
+        </div>`;
+      });
+    });
+    mc2.innerHTML=`<div class="mt">🌟 プレステージ申請</div>
+      <div class="ms">全リセットして新たな旅へ — 引き継ぎボーナス付き</div>
+      <div style="font-family:var(--fm);font-size:12px;background:var(--bg3);border-radius:6px;padding:10px;margin-bottom:10px;color:var(--text2)">
+        <div>プレステージ Lv: ${G.prestige&&G.prestige.level||0} → <span style="color:var(--gold2)">${(G.prestige&&G.prestige.level||0)+1}</span></div>
+        <div>収益ボーナス: ×${(G.prestige&&G.prestige.bonus||1).toFixed(1)} → <span style="color:var(--gold2)">×${((G.prestige&&G.prestige.bonus||1)+0.1).toFixed(1)}</span></div>
+        <div>スキルポイント: 既存 ${prevPts}pt + 今回 +${gainPts}pt = <span style="color:var(--gold2)" id="_ptLeft">${totalPts-usedPts}</span>pt 残り</div>
+      </div>
+      <div style="font-family:var(--fd);font-size:13px;color:var(--cream);margin-bottom:4px">スキルを選択（残りptで購入）</div>
+      ${sh}
+      <button onclick="execPrestige(window._selSk)" style="width:100%;margin-top:14px;padding:13px;background:linear-gradient(135deg,var(--amber),var(--gold));border:none;border-radius:10px;font-family:var(--fd);font-size:15px;font-weight:700;color:#1a1208;cursor:pointer">✓ プレステージ実行（${fmt(PRESTIGE_COST)} 消費）</button>`;
+    const pe=document.getElementById('_ptLeft');if(pe)pe.textContent=totalPts-usedPts;
+  }
+
+  window._selSk=selSkills;
+  window._addSk=function(id,cost){
+    if(usedPts+cost>totalPts)return;
+    selSkills[id]=(selSkills[id]||0)+1;usedPts+=cost;
+    window._selSk=selSkills;renderPModal();
+  };
+  window._rmSk=function(id,cost){
+    if(!selSkills[id])return;
+    selSkills[id]--;if(!selSkills[id])delete selSkills[id];
+    usedPts-=cost;window._selSk=selSkills;renderPModal();
+  };
+  mo.classList.remove('h');
+  renderPModal();
+}
+function execPrestige(selectedSkills){
+  if(!canPrestige()){toast('プレステージ条件未達成',3000);return;}
+  // G.cash は Object.assign(G, defState()) でリセットされるため控除不要
+  const nextLv=(G.prestige&&G.prestige.level||0)+1;
+  const bonus=1+nextLv*0.1;
+  const prevSkills=G.prestige&&G.prestige.skills||{};
+  const prevSP=(G.prestige&&G.prestige.skillPoints)||0;
+  const prevLW=(G.prestige&&G.prestige.legacyWhiskies)||[];
+  const prevRuns=(G.prestige&&G.prestige.totalRuns)||0;
+  // スキルマージ
+  const newSkills={...prevSkills};
+  let usedHere=0;
+  if(selectedSkills){
+    Object.entries(selectedSkills).forEach(([id,lv])=>{
+      if(lv>0){newSkills[id]=(newSkills[id]||0)+lv;const sk=PRESTIGE_SKILLS.find(s=>s.id===id);if(sk)usedHere+=sk.cost*lv;}
+    });
+  }
+  // 引き継ぎ銘柄
+  const newLW=[...prevLW];
+  const lw=LEGACY_WHISKIES.find(w=>w.unlockRun===nextLv);
+  if(lw&&!newLW.includes(lw.id)){newLW.push(lw.id);toast('🥃 引き継ぎ銘柄解禁: '+lw.name,5000);}
+  const savedStory=G.story;
+  const s=defState();
+  s.prestige={level:nextLv,bonus,skillPoints:Math.max(0,prevSP+3-usedHere),skills:newSkills,legacyWhiskies:newLW,totalRuns:prevRuns+1};
+  s.story=savedStory; // ストーリー進捗は引き継ぐ
+  Object.assign(G,s);
+  const mo=document.getElementById('mo');if(mo)mo.classList.add('h');
+  save();rall();
+  toast('🌟 プレステージLv'+nextLv+'！収益×'+bonus.toFixed(1)+' / スキルpt '+(prevSP+3-usedHere)+'pt引継',8000);
+}
 function checkQuests(){
   if(!G.questDone)G.questDone=[];
   QUESTS.forEach(q=>{
@@ -2167,16 +2859,19 @@ function rprof(){
   const ppEl=document.getElementById('prestigePanel');
   if(ppEl){
     ppEl.style.display=G.dl>=DL.length?'block':'none';
-    const _pAffordable=(G.cash||0)>=PRESTIGE_COST;
     ppEl.innerHTML=`
       <div style="font-family:var(--fm);font-size:11px;color:var(--gold2);letter-spacing:.1em;margin-bottom:8px">🌟 PRESTIGE</div>
       <div style="font-family:var(--fm);font-size:12px;color:var(--text2);margin-bottom:8px">
-        現在: Lv${G.prestige&&G.prestige.level||0} / 収益ボーナス ×${(G.prestige&&G.prestige.bonus||1).toFixed(1)}
+        現在: Lv${G.prestige&&G.prestige.level||0} / 収益×${(G.prestige&&G.prestige.bonus||1).toFixed(1)} / 累計${G.prestige&&G.prestige.totalRuns||0}周
       </div>
       <div style="font-family:var(--fb);font-size:11px;color:var(--muted);margin-bottom:10px">全リセット（Tier1に戻る）の代わりに、収益+10%/周の恒久ボーナス獲得。費用: ${fmt(PRESTIGE_COST)}。${canPrestige()?'<span style="color:var(--green)">（実行可能）</span>':'<span style="color:var(--muted)">Tier5・全施設Lv'+facMaxLv()+'・'+fmt(PRESTIGE_COST)+'が条件</span>'}</div>
-      <button onclick="execPrestige()" ${canPrestige()?'':'disabled'} style="width:100%;background:${canPrestige()?'linear-gradient(135deg,var(--amber),var(--gold))':'var(--bg3)'};border:none;border-radius:8px;padding:10px;font-family:var(--fd);font-size:14px;font-weight:700;color:${canPrestige()?'#1a1208':'var(--muted)'};cursor:${canPrestige()?'pointer':'default'}">🌟 プレステージ実行</button>
+      ${(()=>{const sk=G.prestige&&G.prestige.skills||{};const acq=PRESTIGE_SKILLS.filter(s=>sk[s.id]);return acq.length?'<div style="font-family:var(--fm);font-size:10px;color:var(--gold);margin-bottom:6px">取得スキル: '+acq.map(s=>s.name).join(' / ')+'</div>':'';})()}
+      ${(()=>{const lw=G.prestige&&G.prestige.legacyWhiskies||[];return lw.length?'<div style="font-family:var(--fm);font-size:10px;color:var(--amber);margin-bottom:6px">引き継ぎ銘柄: '+lw.map(id=>{const w=LEGACY_WHISKIES&&LEGACY_WHISKIES.find(x=>x.id===id);return w?w.icon+' '+w.name:'';}).join(' / ')+'</div>':'';})()}
+      <button onclick="openPrestigeModal()" ${canPrestige()?'':'disabled'} style="width:100%;background:${canPrestige()?'linear-gradient(135deg,var(--amber),var(--gold))':'var(--bg3)'};border:none;border-radius:8px;padding:10px;font-family:var(--fd);font-size:14px;font-weight:700;color:${canPrestige()?'#1a1208':'var(--muted)'};cursor:${canPrestige()?'pointer':'default'}">🌟 プレステージ申請</button>
     `;
   }
+  renderDailyPanel();
+  renderStoryPanel();
 }
 
 
@@ -2292,7 +2987,8 @@ function tickCasks(dtMs){
     if(cask.sold)return;
     const sz=CASK_SIZES.find(s=>s.id===cask.size)||CASK_SIZES[2];
     cask.litresFilled=Math.max(0,cask.litresFilled*(1-sz.angelShare*dtYears));
-    cask.agingYears=(cask.agingYears||0)+dtYears*(sz.agingSpeed||1);
+    const _agingMult=1+((G.prestige&&G.prestige.skills&&G.prestige.skills['ps_aging'])||0)*0.5;
+    cask.agingYears=(cask.agingYears||0)+dtYears*(sz.agingSpeed||1)*_agingMult;
   });
 }
 
@@ -2321,6 +3017,7 @@ function fillCask(whiskyId, typeId, sizeId){
     qualityMod:G.cut&&G.cut.qualBonus||1,
     sold:false,
   });
+  dmProgress('dm_cask');
   renderCasksTab();
   rall();
 }
@@ -2367,19 +3064,7 @@ function canPrestige(){
   if(!FD.every(f=>{const s=G.fac&&G.fac[f.id];return s&&s.p&&s.l>=facMaxLv();}))return false;
   return(G.cash||0)>=PRESTIGE_COST;
 }
-function execPrestige(){
-  if(G.dl<DL.length){toast('Tier5が条件です',3000);return;}
-  if(!FD.every(f=>{const s=G.fac&&G.fac[f.id];return s&&s.p&&s.l>=facMaxLv();})){toast('全施設Lv'+facMaxLv()+'が条件です',3000);return;}
-  if((G.cash||0)<PRESTIGE_COST){toast('資金不足: '+fmt(PRESTIGE_COST)+' 必要',3000);return;}
-  G.cash-=PRESTIGE_COST;
-  const nextLv=(G.prestige&&G.prestige.level||0)+1;
-  const bonus=1+nextLv*0.1;
-  const s=defState();
-  s.prestige={level:nextLv,bonus};
-  Object.assign(G,s);
-  save();rall();
-  toast('🌟 プレステージ'+nextLv+'！全収益 ×'+bonus.toFixed(1)+' の恒久ボーナス獲得!',8000);
-}
+// execPrestige は Phase4 新関数ブロックで定義
 
 function openCaskModal(){
   const tier=G.dl||1;
@@ -2560,6 +3245,7 @@ function executeBrewing(){
   const price=blendSellPrice(blendState.targetId,active);
   if(price<=0){toast('マッチ率が低すぎます');return;}
   G.cash+=price;G.te=(G.te||0)+price;
+  dmProgress('dm_blend');
   const t=BLEND_TARGETS.find(x=>x.id===blendState.targetId);
   const score=blendScore(calcBlendFlavor(active),t.target,t.tolerance);
   if(score>=0.8)G.reputation=(G.reputation||0)+1.0;
@@ -2740,7 +3426,9 @@ function enterComp(id){
   const comp=COMPETITIONS.find(x=>x.id===id);if(!comp)return;
   if(G.cash<comp.entryCost){toast('資金不足');return;}
   G.cash-=comp.entryCost;
-  const qual=Math.min(1,(0.3+(G.reputation||0)/500)*((G.cut&&G.cut.qualBonus||1.0)));
+  dmProgress('dm_comp');
+  const _compRateBonus=((G.prestige&&G.prestige.skills&&G.prestige.skills['ps_comp_rate'])||0)*0.15;
+  const qual=Math.min(1,(0.3+(G.reputation||0)/500)*((G.cut&&G.cut.qualBonus||1.0))+_compRateBonus);
   if(qual>=comp.qualThreshold){
     changeRep(comp.repReward, comp.name+' 受賞');
     if(!G.awards)G.awards=[];
@@ -2752,7 +3440,8 @@ function enterComp(id){
     toast(comp.icon+' 残念...落選。評判-'+pen,4000);
   }
   if(!G.compCooldowns)G.compCooldowns={};
-  G.compCooldowns[id]=Date.now()+comp.cooldownMs;
+  const _cdm=(G.prestige&&G.prestige.skills&&G.prestige.skills['ps_cooldown'])?0.7:1.0;
+  G.compCooldowns[id]=Date.now()+comp.cooldownMs*_cdm;
   renderAwardsTab();rall();
 }
 function updateAwardsNav(){}
@@ -3365,6 +4054,8 @@ async function init(){
     rall();
     checkQuests();
     updateQuestPanel();
+    generateDailyMissions();
+    renderDailyPanel();
     syncDebugBtn(); // 起動時にボタン状態を保存値と同期
     const _sb=$('sndBtn');if(_sb)_sb.textContent=_soundOn?'🔊':'🔇';
     const _av=$('appVer');if(_av)_av.textContent='v'+BALANCE.APP_VERSION+' ('+BALANCE.APP_DATE+')';
@@ -3398,7 +4089,8 @@ async function init(){
       const inc=ti()*(BALANCE.TICK_MS/3600000);
       if(inc>0){G.cash+=inc;G.te+=inc;}
       // 評判の自然減衰（0.05/hr: 約0.2pt/日 の緩やか減衰）
-      if(G.reputation>0){G.reputation=Math.max(0,G.reputation-0.05*(BALANCE.TICK_MS/3600000));}
+      if(G.reputation>0&&!(G.prestige&&G.prestige.skills&&G.prestige.skills['ps_rep_decay'])){G.reputation=Math.max(0,G.reputation-0.05*(BALANCE.TICK_MS/3600000));}
+      tickActiveEvent();
       markActive();
     },BALANCE.TICK_MS);
 
@@ -3410,6 +4102,9 @@ async function init(){
       rbusUpdate();      // 残高が閾値を超えた瞬間にボタン色を反転
       chkUnlocks();
       checkQuests();
+      generateDailyMissions();tickDailyMissions();
+      tryTriggerRandomEvent();
+      checkStoryUnlocks();
       const at=document.querySelector('.tab.on');
       if(at){
         if(at.id==='tb')$('til').textContent='収益: '+fmt(ti())+'/h';
@@ -3458,7 +4153,7 @@ window.addEventListener('beforeunload',()=>{markActive();save();});
 window.addEventListener('pagehide',()=>{markActive();save();});
 // BFCacheから復帰した場合（X閉じ→再開でinit()が走らないケース）も補正
 window.addEventListener('pageshow',e=>{
-  if(e&&e.persisted){offline();chkUnlocks();rall();}
+  if(e&&e.persisted){offline();chkUnlocks();rall();initTicker();}
 });
 // blur/focus（一部環境でvisibilitychangeより先に発火）も保険として捕捉
 window.addEventListener('blur',()=>{markActive();try{save();}catch(_){}});
@@ -3471,6 +4166,8 @@ document.addEventListener('visibilitychange',()=>{
     offline();
     chkUnlocks();
     rall();
+    // ティッカーのCSSアニメーションがバックグラウンドで止まった場合の再開
+    initTicker();
   }
 });
 </script>
