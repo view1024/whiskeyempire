@@ -319,6 +319,9 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--fb);height:10
       <div class="epb"><div class="fill" id="ep" style="width:0%"></div></div>
       <div id="filterbar" style="display:flex;gap:6px;overflow-x:auto;padding-bottom:10px;margin-bottom:8px"></div>
       <div id="wg" class="wg"></div>
+      <!-- 施設図鑑 -->
+      <div style="font-family:var(--fm);font-size:11px;font-weight:600;color:var(--gold);letter-spacing:.08em;text-transform:uppercase;margin:16px 0 8px;padding:0 4px">🏭 蒸留設備 図鑑</div>
+      <div id="facEncEl"></div>
       <!-- ブレンディング工房セクション -->
       <div class="sec" style="margin-top:12px">🔀 ブレンディング工房</div>
       <div class="lock-badge" id="blendLockBadge">🔒 蒸留所Tier3で解禁<br><span style="font-size:10px">複数銘柄を調合して目標フレーバーに近づける。以下のレシピが解禁されます:</span><div id="blendPreview" style="display:flex;gap:6px;overflow-x:auto;padding:8px 0 2px;flex-wrap:nowrap"></div></div>
@@ -548,7 +551,7 @@ const COMPETITIONS=[
 ];
 
 const BALANCE = {
-  TAP_BASE: 8,
+  TAP_BASE: 3,
   TAP_MUL: 1.5,
   TAP_COST_BASE: 50,
   TAP_COST_MUL: 3,
@@ -562,8 +565,8 @@ const BALANCE = {
   UI_REFRESH_MS: 2000,
   MAX_LV: 10,
   SCHEMA_VERSION: 6,            // migrate()拡張・facMaxLv/tapMaxLv導入
-  APP_VERSION: '3.1.0',  // balance v3: FAC_INC_MUL=1.2, dm=[1,3,9,27,81], bc×0.5, bi×100
-  APP_DATE: '2026-05-30',
+  APP_VERSION: '3.6.0',  // TAP_BASE 8→3、タップ比率63%/passive37%
+  APP_DATE: '2026-05-31',
   STORAGE_PREFIX: 'we_v4:',     // ストレージキーは互換性のため据え置き
   // 自動製造（旧自動販売）
   AM_BASE_INTERVAL_MS: 30000,   // ボトリングLv1で30秒/本（高Lvで短縮）
@@ -596,13 +599,13 @@ const AUTOSELL_BOT_REQ={1:2,2:5,3:8};
 const DL=[
   {name:"ホームキット",mult:1,unlock:0,region:"地元",slots:1,bonus:1.0,
    desc:"自宅キッチンに小型単式蒸留器（アランビック）と数本の樽を並べた「家内製酒場」。原料調達から熟成まで完全DIYで、地元の知人にだけ販売できる規模。"},
-  {name:"クラフト蒸留所",mult:3,unlock:5000000,region:"国内",slots:2,bonus:1.1,
+  {name:"クラフト蒸留所",mult:3,unlock:4000000,region:"国内",slots:2,bonus:1.1,
    desc:"独立した工場棟を持つマイクロディスティラリー。1日数百本の生産能力と、国内流通網への参入が可能に。職人気質の評価が口コミで広がる段階。\n\n【拡張特典】タップ・施設収益 +10%、ブレンダー研究室の解禁。"},
-  {name:"地方蒸留所",mult:9,unlock:65000000,region:"アジア",slots:3,bonus:1.25,
+  {name:"地方蒸留所",mult:9,unlock:51000000,region:"アジア",slots:3,bonus:1.25,
    desc:"歴史ある産地に拠点を構えるリージョナル蒸留所。複数の蒸留室と熟成庫を擁し、アジア圏への輸出と免税店ライセンスを取得。地域の象徴的存在に。\n\n【拡張特典】収益倍率 +25%、3銘柄並列製造、地域限定銘柄ライン。"},
-  {name:"大手蒸留所",mult:27,unlock:560000000,region:"欧米",slots:4,bonus:1.5,
+  {name:"大手蒸留所",mult:27,unlock:450000000,region:"欧米",slots:4,bonus:1.5,
    desc:"大手酒類メーカー直営の本格蒸留所。年間数百万本生産、欧米の主要バイヤーと長期契約。専属マスターブレンダーによるプレミアムラインも展開。\n\n【拡張特典】収益倍率 +50%、4銘柄並列製造、欧米プレミアム流通網。"},
-  {name:"コングロマリット",mult:81,unlock:4800000000,region:"全世界",slots:5,bonus:2.0,
+  {name:"コングロマリット",mult:81,unlock:3800000000,region:"全世界",slots:5,bonus:2.0,
    desc:"世界5大ウイスキー産地を擁する多国籍コングロマリット。年間数千万本、世界100か国以上に販売網。希少ヴィンテージはオークション市場でも記録的価格を更新。\n\n【拡張特典】収益倍率 ×2、5銘柄並列製造、世界販売網、限定ヴィンテージ解禁。"}
 ];
 
@@ -710,6 +713,7 @@ function purFac(id){
   sndPurchase();
   chkT();chkUnlocks();rbus();rdistLight();updHdr();
   toast(`${FD.find(f=>f.id===id).name}を購入!`);
+  renderFacEncyclopedia();
 }
 
 
@@ -917,6 +921,7 @@ function upgFac(id){
     toast(_upgName+' Lv'+G.fac[id].l+'に強化!');
   }
   closeM();
+  renderFacEncyclopedia();
 }
 function canUpgDist(){
   if(G.dl>=DL.length)return false;
@@ -1080,39 +1085,39 @@ const REGIONS={
 function regionBonus(){return saleMult();} // saleMult()のエイリアス（後方互換）
 
 const FD=[
-  {id:"malting",name:"製麦室",icon:"🌾",bi:4200,bc:42,pur:0,uc:null,ul:"開始時から利用可能"},
-  {id:"mashing",name:"糖化槽",icon:"🪣",bi:8300,bc:83,pur:200,uc:{f:"malting",l:3},ul:"製麦室 Lv3で解禁"},
-  {id:"fermentation",name:"発酵槽",icon:"🫧",bi:16500,bc:165,pur:1000,uc:{f:"mashing",l:3},ul:"糖化槽 Lv3で解禁"},
-  {id:"distillation",name:"蒸留器",icon:"⚗️",bi:24800,bc:248,pur:5000,uc:{f:"fermentation",l:3},ul:"発酵槽 Lv3で解禁"},
-  {id:"maturation",name:"熟成庫",icon:"🛢️",bi:20700,bc:207,pur:20000,uc:{f:"distillation",l:3},ul:"蒸留器 Lv3で解禁"},
-  {id:"bottling",name:"ボトリングライン",icon:"🍾",bi:12400,bc:124,pur:50000,uc:{f:"maturation",l:3},ul:"熟成庫 Lv3で解禁"}
+  {id:"malting",name:"製麦室",icon:"🌾",bi:2520,bc:42,pur:0,uc:null,ul:"開始時から利用可能"},
+  {id:"mashing",name:"糖化槽",icon:"🪣",bi:4980,bc:83,pur:200,uc:{f:"malting",l:3},ul:"製麦室 Lv3で解禁"},
+  {id:"fermentation",name:"発酵槽",icon:"🫧",bi:9900,bc:165,pur:1000,uc:{f:"mashing",l:3},ul:"糖化槽 Lv3で解禁"},
+  {id:"distillation",name:"蒸留器",icon:"⚗️",bi:14880,bc:248,pur:5000,uc:{f:"fermentation",l:3},ul:"発酵槽 Lv3で解禁"},
+  {id:"maturation",name:"熟成庫",icon:"🛢️",bi:12420,bc:207,pur:20000,uc:{f:"distillation",l:3},ul:"蒸留器 Lv3で解禁"},
+  {id:"bottling",name:"ボトリングライン",icon:"🍾",bi:7440,bc:124,pur:50000,uc:{f:"maturation",l:3},ul:"熟成庫 Lv3で解禁"}
 ];
 
 const WL=[
-  {id:"glenlivid",name:"Glenlivid",rg:"ハイランド",tp:"スコッチ",yr:8,ck:1.0,bs:100,st:1,em:"🟨",fl:{フルーティ:70,スモーキー:5,スパイシー:30,スウィート:65,フローラル:80},ds:"軽快でフローラル。入門者に最適。"},
-  {id:"glenfiddock",name:"Glenfiddock",rg:"スペイサイド",tp:"スコッチ",yr:10,ck:1.0,bs:120,st:1,em:"🟨",fl:{フルーティ:80,スモーキー:8,スパイシー:25,スウィート:70,フローラル:60},ds:"洋梨とバニラの甘み。世界的定番。"},
+  {id:"glenlivid",name:"Glenvivid",rg:"ハイランド",tp:"スコッチ",yr:8,ck:1.0,bs:100,st:1,em:"🟨",fl:{フルーティ:70,スモーキー:5,スパイシー:30,スウィート:65,フローラル:80},ds:"軽快でフローラル。入門者に最適。"},
+  {id:"glenfiddock",name:"Glenfinddoch",rg:"スペイサイド",tp:"スコッチ",yr:10,ck:1.0,bs:120,st:1,em:"🟨",fl:{フルーティ:80,スモーキー:8,スパイシー:25,スウィート:70,フローラル:60},ds:"洋梨とバニラの甘み。世界的定番。"},
   {id:"johnnie_em",name:"Johnnie Emerald",rg:"スコットランド",tp:"スコッチ",yr:8,ck:1.2,bs:300,st:1,em:"🟨",fl:{フルーティ:60,スモーキー:35,スパイシー:45,スウィート:55,フローラル:40},ds:"クリーンとスモークのバランス。"},
-  {id:"chivas_f",name:"Chévas Régal",rg:"スコットランド",tp:"スコッチ",yr:12,ck:1.8,bs:2000,st:2,em:"🟨",fl:{フルーティ:70,スモーキー:20,スパイシー:50,スウィート:80,フローラル:50},ds:"まろやかで豊かなフルーツ。"},
+  {id:"chivas_f",name:"Chávas Régal",rg:"スコットランド",tp:"スコッチ",yr:12,ck:1.8,bs:2000,st:2,em:"🟨",fl:{フルーティ:70,スモーキー:20,スパイシー:50,スウィート:80,フローラル:50},ds:"まろやかで豊かなフルーツ。"},
   {id:"glenmoran",name:"Glenmoran",rg:"ハイランド",tp:"スコッチ",yr:12,ck:1.0,bs:550,st:2,em:"🟨",fl:{フルーティ:75,スモーキー:5,スパイシー:30,スウィート:80,フローラル:70},ds:"バニラとバターの優しさ。"},
-  {id:"highland_b",name:"Highland Bark",rg:"オークニー",tp:"スコッチ",yr:12,ck:1.1,bs:500,st:2,em:"🟧",fl:{フルーティ:55,スモーキー:45,スパイシー:50,スウィート:60,フローラル:50},ds:"ヘザー蜂蜜と穏やかなスモーク。"},
+  {id:"highland_b",name:"Highgate Dark",rg:"オークニー",tp:"スコッチ",yr:12,ck:1.1,bs:500,st:2,em:"🟧",fl:{フルーティ:55,スモーキー:45,スパイシー:50,スウィート:60,フローラル:50},ds:"ヘザー蜂蜜と穏やかなスモーク。"},
   {id:"talisco",name:"Talisco",rg:"スカイ島",tp:"スコッチ",yr:10,ck:1.2,bs:450,st:2,em:"🟦",fl:{フルーティ:40,スモーキー:70,スパイシー:85,スウィート:35,フローラル:20},ds:"海塩とブラックペッパー。辛口派に人気。"},
   {id:"laphrogue",name:"Laphrogue",rg:"アイラ",tp:"スコッチ",yr:10,ck:1.2,bs:400,st:2,em:"🟫",fl:{フルーティ:20,スモーキー:95,スパイシー:60,スウィート:30,フローラル:10},ds:"強烈なスモーク。個性的な一本。"},
-  {id:"ardbeck",name:"Ardbeck",rg:"アイラ",tp:"スコッチ",yr:12,ck:1.3,bs:600,st:2,em:"🟫",fl:{フルーティ:30,スモーキー:90,スパイシー:70,スウィート:25,フローラル:15},ds:"ピートとコーヒーが絡み合う。"},
-  {id:"macallen",name:"MacAllen",rg:"スペイサイド",tp:"スコッチ",yr:15,ck:2.5,bs:5000,st:3,em:"🟥",fl:{フルーティ:80,スモーキー:5,スパイシー:70,スウィート:90,フローラル:40},ds:"シェリー樽熟成の極致。"},
+  {id:"ardbeck",name:"Ardmock",rg:"アイラ",tp:"スコッチ",yr:12,ck:1.3,bs:600,st:2,em:"🟫",fl:{フルーティ:30,スモーキー:90,スパイシー:70,スウィート:25,フローラル:15},ds:"ピートとコーヒーが絡み合う。"},
+  {id:"macallen",name:"MacKallen",rg:"スペイサイド",tp:"スコッチ",yr:15,ck:2.5,bs:5000,st:3,em:"🟥",fl:{フルーティ:80,スモーキー:5,スパイシー:70,スウィート:90,フローラル:40},ds:"シェリー樽熟成の極致。"},
   {id:"balvenix",name:"Balvenix",rg:"スペイサイド",tp:"スコッチ",yr:17,ck:2.2,bs:8000,st:3,em:"🟥",fl:{フルーティ:70,スモーキー:10,スパイシー:75,スウィート:85,フローラル:55},ds:"蜂蜜とスパイスの複雑なレイヤー。"},
   {id:"dalvista",name:"Dalvista",rg:"ハイランド",tp:"スコッチ",yr:18,ck:2.8,bs:12000,st:3,em:"🟥",fl:{フルーティ:65,スモーキー:10,スパイシー:60,スウィート:95,フローラル:35},ds:"シェリーとチョコ。王族の愛した一本。"},
-  {id:"jameston",name:"Jameston",rg:"コーク",tp:"アイリッシュ",yr:8,ck:1.0,bs:150,st:1,em:"🟩",fl:{フルーティ:65,スモーキー:3,スパイシー:20,スウィート:70,フローラル:55},ds:"スムースで軽快。アイリッシュの王道。"},
-  {id:"rushmill",name:"Rushmill",rg:"アントリム",tp:"アイリッシュ",yr:10,ck:1.1,bs:400,st:2,em:"🟩",fl:{フルーティ:70,スモーキー:5,スパイシー:25,スウィート:75,フローラル:60},ds:"蜂蜜とリンゴ。世界最古の蒸留所系。"},
-  {id:"jack_d",name:"Jack Danielo's",rg:"テネシー",tp:"バーボン",yr:4,ck:1.0,bs:200,st:1,em:"🟫",fl:{フルーティ:40,スモーキー:30,スパイシー:45,スウィート:80,フローラル:10},ds:"チャコールろ過のテネシーシンボル。"},
-  {id:"makers_w",name:"Maker's Wax",rg:"バーズタウン",tp:"バーボン",yr:5,ck:1.1,bs:350,st:1,em:"🟫",fl:{フルーティ:50,スモーキー:10,スパイシー:35,スウィート:90,フローラル:25},ds:"小麦由来の甘さ。赤ワックスが目印。"},
-  {id:"buffalo_t",name:"Buffalo Tracks",rg:"フランクフォート",tp:"バーボン",yr:7,ck:1.3,bs:800,st:2,em:"🟫",fl:{フルーティ:55,スモーキー:15,スパイシー:65,スウィート:75,フローラル:20},ds:"キャラメルとオークのリッチな味。"},
-  {id:"pappy_v",name:"Pappy Van Rinkle",rg:"ケンタッキー",tp:"バーボン",yr:23,ck:3.0,bs:80000,st:3,em:"🟫",fl:{フルーティ:60,スモーキー:20,スパイシー:80,スウィート:95,フローラル:30},ds:"幻のバーボン。入手は宝くじ級。"},
-  {id:"yamashiki",name:"Yamashiki",rg:"山崎",tp:"ジャパニーズ",yr:18,ck:3.0,bs:20000,st:3,em:"⬜",fl:{フルーティ:80,スモーキー:10,スパイシー:55,スウィート:85,フローラル:70},ds:"ミズナラ樽の白檀香。日本の傑作。"},
-  {id:"hakusha",name:"Hakusha",rg:"白州",tp:"ジャパニーズ",yr:18,ck:2.8,bs:18000,st:3,em:"⬜",fl:{フルーティ:85,スモーキー:20,スパイシー:40,スウィート:70,フローラル:90},ds:"南アルプスの清涼感。フレッシュな一本。"},
-  {id:"hibique",name:"Hibique",rg:"京都/大阪",tp:"ジャパニーズ",yr:21,ck:3.5,bs:50000,st:3,em:"⬜",fl:{フルーティ:85,スモーキー:15,スパイシー:60,スウィート:90,フローラル:80},ds:"調和と華やかさの極致。最高峰ブレンデッド。"},
-  {id:"nikkei_p",name:"Nikkei Pure",rg:"余市",tp:"ジャパニーズ",yr:12,ck:2.0,bs:3000,st:2,em:"⬜",fl:{フルーティ:75,スモーキー:30,スパイシー:50,スウィート:65,フローラル:55},ds:"北海道の潮風を感じる力強さ。"},
-  {id:"suntree_t",name:"Suntree Toki",rg:"大阪",tp:"ジャパニーズ",yr:8,ck:1.5,bs:800,st:2,em:"⬜",fl:{フルーティ:70,スモーキー:5,スパイシー:35,スウィート:65,フローラル:75},ds:"ハーブとシトラス。ハイボールに最適。"},
-  {id:"crown_r",name:"Crown Royale",rg:"マニトバ",tp:"カナディアン",yr:10,ck:1.4,bs:600,st:2,em:"🟪",fl:{フルーティ:65,スモーキー:5,スパイシー:55,スウィート:75,フローラル:40},ds:"まろやかなライ麦風味。カナダ王室御用達。"},
+  {id:"jameston",name:"Hamileston",rg:"コーク",tp:"アイリッシュ",yr:8,ck:1.0,bs:150,st:1,em:"🟩",fl:{フルーティ:65,スモーキー:3,スパイシー:20,スウィート:70,フローラル:55},ds:"スムースで軽快。アイリッシュの王道。"},
+  {id:"rushmill",name:"Rashmill",rg:"アントリム",tp:"アイリッシュ",yr:10,ck:1.1,bs:400,st:2,em:"🟩",fl:{フルーティ:70,スモーキー:5,スパイシー:25,スウィート:75,フローラル:60},ds:"蜂蜜とリンゴ。世界最古の蒸留所系。"},
+  {id:"jack_d",name:"Jack Davalo's",rg:"テネシー",tp:"バーボン",yr:4,ck:1.0,bs:200,st:1,em:"🟫",fl:{フルーティ:40,スモーキー:30,スパイシー:45,スウィート:80,フローラル:10},ds:"チャコールろ過のテネシーシンボル。"},
+  {id:"makers_w",name:"Baker's Wax",rg:"バーズタウン",tp:"バーボン",yr:5,ck:1.1,bs:350,st:1,em:"🟫",fl:{フルーティ:50,スモーキー:10,スパイシー:35,スウィート:90,フローラル:25},ds:"小麦由来の甘さ。赤ワックスが目印。"},
+  {id:"buffalo_t",name:"Buffalo Creeks",rg:"フランクフォート",tp:"バーボン",yr:7,ck:1.3,bs:800,st:2,em:"🟫",fl:{フルーティ:55,スモーキー:15,スパイシー:65,スウィート:75,フローラル:20},ds:"キャラメルとオークのリッチな味。"},
+  {id:"pappy_v",name:"Pappy Van Crinkle",rg:"ケンタッキー",tp:"バーボン",yr:23,ck:3.0,bs:80000,st:3,em:"🟫",fl:{フルーティ:60,スモーキー:20,スパイシー:80,スウィート:95,フローラル:30},ds:"幻のバーボン。入手は宝くじ級。"},
+  {id:"yamashiki",name:"Kawasaki",rg:"山崎",tp:"ジャパニーズ",yr:18,ck:3.0,bs:20000,st:3,em:"⬜",fl:{フルーティ:80,スモーキー:10,スパイシー:55,スウィート:85,フローラル:70},ds:"ミズナラ樽の白檀香。日本の傑作。"},
+  {id:"hakusha",name:"Kokushu",rg:"白州",tp:"ジャパニーズ",yr:18,ck:2.8,bs:18000,st:3,em:"⬜",fl:{フルーティ:85,スモーキー:20,スパイシー:40,スウィート:70,フローラル:90},ds:"南アルプスの清涼感。フレッシュな一本。"},
+  {id:"hibique",name:"Hibikue",rg:"京都/大阪",tp:"ジャパニーズ",yr:21,ck:3.5,bs:50000,st:3,em:"⬜",fl:{フルーティ:85,スモーキー:15,スパイシー:60,スウィート:90,フローラル:80},ds:"調和と華やかさの極致。最高峰ブレンデッド。"},
+  {id:"nikkei_p",name:"Nikkyo Pure",rg:"余市",tp:"ジャパニーズ",yr:12,ck:2.0,bs:3000,st:2,em:"⬜",fl:{フルーティ:75,スモーキー:30,スパイシー:50,スウィート:65,フローラル:55},ds:"北海道の潮風を感じる力強さ。"},
+  {id:"suntree_t",name:"Suntoria Toki",rg:"大阪",tp:"ジャパニーズ",yr:8,ck:1.5,bs:800,st:2,em:"⬜",fl:{フルーティ:70,スモーキー:5,スパイシー:35,スウィート:65,フローラル:75},ds:"ハーブとシトラス。ハイボールに最適。"},
+  {id:"crown_r",name:"Crown Morale",rg:"マニトバ",tp:"カナディアン",yr:10,ck:1.4,bs:600,st:2,em:"🟪",fl:{フルーティ:65,スモーキー:5,スパイシー:55,スウィート:75,フローラル:40},ds:"まろやかなライ麦風味。カナダ王室御用達。"},
   {id:"imperial",name:"Imperial Reserve",rg:"秘蔵",tp:"スコッチ",yr:25,ck:5.0,bs:500000,st:3,em:"👑",fl:{フルーティ:95,スモーキー:50,スパイシー:90,スウィート:95,フローラル:85},ds:"全銘柄コンプリートで解放される伝説の一本。"}
 ];
 
@@ -1120,23 +1125,60 @@ const WL_TYPES=['all','スコッチ','バーボン','ジャパニーズ','アイ
 const WL_TYPE_LABELS={all:'全て','スコッチ':'スコッチ','バーボン':'バーボン','ジャパニーズ':'ジャパニーズ','アイリッシュ':'アイリッシュ','カナディアン':'カナディアン'};
 
 const TT=[
-  {id:"t1",lb:"初打ち",ch:s=>s.tt>=1},
-  {id:"t2",lb:"百叩き",ch:s=>s.tt>=100},
-  {id:"t3",lb:"$1K達成",ch:s=>s.te>=1000},
-  {id:"t4",lb:"$1M達成",ch:s=>s.te>=1000000},
-  {id:"t5",lb:"$1B達成",ch:s=>s.te>=1000000000},
-  {id:"t6",lb:"見習いテイスター",ch:s=>s.uw.length>=5},
-  {id:"t7",lb:"熟練テイスター",ch:s=>s.uw.length>=15},
-  {id:"t8",lb:"マスターテイスター",ch:s=>s.uw.length>=25},
-  {id:"t9",lb:"クラフト蒸留家",ch:s=>s.dl>=2},
-  {id:"t10",lb:"地方の名士",ch:s=>s.dl>=3},
-  {id:"t11",lb:"全施設稼働",ch:s=>Object.values(s.fac).filter(f=>f.p).length>=6},
-  // Tier別到達称号（追加コンテンツ）
-  {id:"t12",lb:"業界の重鎮",ch:s=>s.dl>=4},
-  {id:"t13",lb:"帝国の創始者",ch:s=>s.dl>=5},
-  {id:"t14",lb:"$1T達成",ch:s=>s.te>=1000000000000},
-  {id:"t15",lb:"全Tier制覇者",ch:s=>s.dl>=DL.length},
-  {id:"t16",lb:"並列製造の達人",ch:s=>{let n=0;for(const k in (s.am||{})){if(s.am[k])n++;}return n>=3;}}
+  // === タップ系 ===
+  {id:"t1",  lb:"初打ち",          ch:s=>s.tt>=1},
+  {id:"t2",  lb:"百叩き",          ch:s=>s.tt>=100},
+  {id:"t2b", lb:"千叩き",          ch:s=>s.tt>=1000},
+  {id:"t2c", lb:"万打の拳",        ch:s=>s.tt>=10000},
+  {id:"t2d", lb:"十万連打",        ch:s=>s.tt>=100000},
+  // === 売上系 ===
+  {id:"t3",  lb:"$1K達成",         ch:s=>s.te>=1000},
+  {id:"t3b", lb:"$10K達成",        ch:s=>s.te>=10000},
+  {id:"t4",  lb:"$1M達成",         ch:s=>s.te>=1000000},
+  {id:"t4b", lb:"$100M達成",       ch:s=>s.te>=100000000},
+  {id:"t5",  lb:"$1B達成",         ch:s=>s.te>=1000000000},
+  {id:"t5b", lb:"$100B達成",       ch:s=>s.te>=100000000000},
+  {id:"t14", lb:"$1T達成",         ch:s=>s.te>=1000000000000},
+  // === 図鑑系 ===
+  {id:"t6",  lb:"見習いテイスター", ch:s=>s.uw.length>=3},
+  {id:"t6b", lb:"ウィスキー通",     ch:s=>s.uw.length>=8},
+  {id:"t7",  lb:"熟練テイスター",   ch:s=>s.uw.length>=15},
+  {id:"t7b", lb:"銘柄コレクター",   ch:s=>s.uw.length>=20},
+  {id:"t8",  lb:"マスターテイスター",ch:s=>s.uw.length>=25},
+  // === 蒸留所Tier系 ===
+  {id:"t9",  lb:"クラフト蒸留家",   ch:s=>s.dl>=2},
+  {id:"t10", lb:"地方の名士",       ch:s=>s.dl>=3},
+  {id:"t12", lb:"業界の重鎮",       ch:s=>s.dl>=4},
+  {id:"t13", lb:"帝国の創始者",     ch:s=>s.dl>=5},
+  {id:"t15", lb:"全Tier制覇者",     ch:s=>s.dl>=DL.length},
+  // === 施設系 ===
+  {id:"t11", lb:"全施設稼働",       ch:s=>Object.values(s.fac||{}).filter(f=>f.p).length>=6},
+  {id:"t11b",lb:"施設Lv5達成",      ch:s=>Object.values(s.fac||{}).every(f=>!f.p||f.l>=5)},
+  {id:"t11c",lb:"施設Lv10達成",     ch:s=>Object.values(s.fac||{}).filter(f=>f.p).every(f=>f.l>=10)},
+  {id:"t11d",lb:"施設Lv20達成",     ch:s=>s.dl>=2&&Object.values(s.fac||{}).filter(f=>f.p).every(f=>f.l>=20)},
+  {id:"t11e",lb:"施設Lv30達成",     ch:s=>s.dl>=3&&Object.values(s.fac||{}).filter(f=>f.p).every(f=>f.l>=30)},
+  // === 自動製造系 ===
+  {id:"t16", lb:"並列製造の達人",   ch:s=>{let n=0;for(const k in (s.am||{})){if(s.am[k])n++;}return n>=3;}},
+  {id:"t16b",lb:"全自動工場長",     ch:s=>{let n=0;for(const k in (s.am||{})){if(s.am[k])n++;}return n>=5;}},
+  // === タップ強化系 ===
+  {id:"t17", lb:"タップ職人",       ch:s=>(s.cl||0)>=1},
+  {id:"t17b",lb:"名人の一打",       ch:s=>(s.cl||0)>=tapMaxLv()},
+  // === 評判系 ===
+  {id:"t18", lb:"地域の評判",       ch:s=>(s.reputation||0)>=10},
+  {id:"t18b",lb:"国内注目の蒸留家", ch:s=>(s.reputation||0)>=50},
+  {id:"t18c",lb:"国際的評価",       ch:s=>(s.reputation||0)>=150},
+  {id:"t18d",lb:"殿堂入り蒸留家",   ch:s=>(s.reputation||0)>=400},
+  // === 樽・ブレンド系 ===
+  {id:"t19", lb:"初仕込み",         ch:s=>(s.casks||[]).length>=1||(s.blendHistory||[]).length>=1},
+  {id:"t19b",lb:"ブレンド師",       ch:s=>(s.blendHistory||[]).length>=5},
+  {id:"t19c",lb:"熟成の芸術家",     ch:s=>(s.casks||[]).some(c=>c.agingYears>=5)},
+  // === 品評会系 ===
+  {id:"t20", lb:"初受賞",           ch:s=>(s.awards||[]).length>=1},
+  {id:"t20b",lb:"複数受賞歴",       ch:s=>(s.awards||[]).length>=3},
+  {id:"t20c",lb:"国際コンクール覇者",ch:s=>(s.awards||[]).includes('iwsc')},
+  // === プレステージ系 ===
+  {id:"t21", lb:"伝説の蒸留家",     ch:s=>(s.prestige&&s.prestige.level||0)>=1},
+  {id:"t21b",lb:"不滅の帝王",       ch:s=>(s.prestige&&s.prestige.level||0)>=3},
 ];
 
 // 図鑑の解禁条件（label = 表示用テキスト、secret = 解禁条件を非開示）
@@ -1147,25 +1189,25 @@ const UNLOCK_REQ=[
   {id:"glenlivid",req:()=>true,label:"最初から利用可能"},
   {id:"jameston",req:()=>G.te>=5000,label:"総売上 $5K で解禁"},
   {id:"jack_d",req:()=>G.te>=15000,label:"総売上 $15K で解禁"},
-  {id:"johnnie_em",req:()=>G.te>=30000&&cw('glenlivid')>=10,label:"総売上 $30K + Glenlivid 10本販売"},
-  {id:"makers_w",req:()=>G.te>=60000&&cw('jack_d')>=10,label:"総売上 $60K + Jack Danielo's 10本販売"},
-  {id:"glenfiddock",req:()=>G.te>=100000&&cw('glenlivid')>=20,label:"総売上 $100K + Glenlivid 20本販売"},
-  {id:"rushmill",req:()=>G.te>=200000&&cw('jameston')>=30,label:"総売上 $200K + Jameston 30本販売"},
+  {id:"johnnie_em",req:()=>G.te>=30000&&cw('glenlivid')>=10,label:"総売上 $30K + Glenvivid 10本販売"},
+  {id:"makers_w",req:()=>G.te>=60000&&cw('jack_d')>=10,label:"総売上 $60K + Jack Davalo's 10本販売"},
+  {id:"glenfiddock",req:()=>G.te>=100000&&cw('glenlivid')>=20,label:"総売上 $100K + Glenvivid 20本販売"},
+  {id:"rushmill",req:()=>G.te>=200000&&cw('jameston')>=30,label:"総売上 $200K + Hamileston 30本販売"},
   {id:"laphrogue",req:()=>G.te>=350000&&G.dl>=2,label:"総売上 $350K + 蒸留所Lv2"},
   {id:"talisco",req:()=>G.te>=500000&&cw('johnnie_em')>=30,label:"総売上 $500K + Johnnie Emerald 30本販売"},
-  {id:"highland_b",req:()=>G.te>=750000&&cw('glenfiddock')>=30,label:"総売上 $750K + Glenfiddock 30本販売"},
+  {id:"highland_b",req:()=>G.te>=750000&&cw('glenfiddock')>=30,label:"総売上 $750K + Glenfinddoch 30本販売"},
   {id:"ardbeck",req:()=>G.te>=1200000&&cw('laphrogue')>=20,label:"総売上 $1.2M + Laphrogue 20本販売"},
-  {id:"glenmoran",req:()=>G.te>=2000000&&G.dl>=2&&cw('highland_b')>=30,label:"総売上 $2M + 蒸留所Lv2 + Highland Bark 30本"},
-  {id:"buffalo_t",req:()=>G.te>=3500000&&cw('makers_w')>=50,label:"総売上 $3.5M + Maker's Wax 50本販売"},
+  {id:"glenmoran",req:()=>G.te>=2000000&&G.dl>=2&&cw('highland_b')>=30,label:"総売上 $2M + 蒸留所Lv2 + Highgate Dark 30本"},
+  {id:"buffalo_t",req:()=>G.te>=3500000&&cw('makers_w')>=50,label:"総売上 $3.5M + Baker's Wax 50本販売"},
   {id:"suntree_t",req:()=>G.te>=5000000&&G.dl>=2,label:"総売上 $5M + 蒸留所Lv2"},
   {id:"chivas_f",req:()=>G.te>=8000000&&cw('johnnie_em')>=80,label:"総売上 $8M + Johnnie Emerald 80本販売"},
-  {id:"nikkei_p",req:()=>G.te>=12000000&&cw('suntree_t')>=40&&G.dl>=3,label:"総売上 $12M + Suntree Toki 40本 + 蒸留所Lv3"},
-  {id:"crown_r",req:()=>G.te>=20000000&&cw('buffalo_t')>=50,label:"総売上 $20M + Buffalo Tracks 50本販売"},
+  {id:"nikkei_p",req:()=>G.te>=12000000&&cw('suntree_t')>=40&&G.dl>=3,label:"総売上 $12M + Suntoria Toki 40本 + 蒸留所Lv3"},
+  {id:"crown_r",req:()=>G.te>=20000000&&cw('buffalo_t')>=50,label:"総売上 $20M + Buffalo Creeks 50本販売"},
   {id:"macallen",req:()=>G.dl>=3,label:"蒸留所Lv3 で解禁"},
-  {id:"balvenix",req:()=>G.dl>=3&&G.te>=80000000&&cw('macallen')>=40,label:"蒸留所Lv3 + 総売上 $80M + MacAllen 40本販売"},
-  {id:"dalvista",req:()=>G.dl>=3&&cw('macallen')>=80,label:"蒸留所Lv3 + MacAllen 80本販売"},
-  {id:"yamashiki",req:()=>G.dl>=3&&G.te>=300000000&&cw('nikkei_p')>=80,label:"蒸留所Lv3 + 総売上 $300M + Nikkei Pure 80本"},
-  {id:"hakusha",req:()=>G.dl>=4&&cw('yamashiki')>=50,label:"蒸留所Lv4 + Yamashiki 50本販売"},
+  {id:"balvenix",req:()=>G.dl>=3&&G.te>=80000000&&cw('macallen')>=40,label:"蒸留所Lv3 + 総売上 $80M + MacKallen 40本販売"},
+  {id:"dalvista",req:()=>G.dl>=3&&cw('macallen')>=80,label:"蒸留所Lv3 + MacKallen 80本販売"},
+  {id:"yamashiki",req:()=>G.dl>=3&&G.te>=300000000&&cw('nikkei_p')>=80,label:"蒸留所Lv3 + 総売上 $300M + Nikkyo Pure 80本"},
+  {id:"hakusha",req:()=>G.dl>=4&&cw('yamashiki')>=50,label:"蒸留所Lv4 + Kawasaki 50本販売"},
   {id:"hibique",req:()=>G.dl>=4,label:"???",secret:true},
   {id:"pappy_v",req:()=>G.dl>=4&&G.te>=5000000000&&cw('buffalo_t')>=200,label:"???",secret:true},
   {id:"imperial",req:()=>{const a=WL.filter(w=>w.id!=='imperial');return a.every(w=>G.uw.includes(w.id))&&G.dl>=5;},label:"???",secret:true}
@@ -1245,7 +1287,7 @@ const FAC_UPG={
     {eq:"ノンチルフィルト専用ライン",desc:"あえてろ過しないプレミアム仕様の独立ラインを追加。フルボディの風味が保たれ、プレミアム銘柄の評価スコアが上昇。"},
     {eq:"カスクストレングス充填設備",desc:"加水なし原酒強度（55〜65%）での瓶詰めが可能に。コレクター向け高単価ラインが解禁。"},
     {eq:"全自動充填・打栓・巻締ライン（1000本/h）",desc:"充填〜打栓〜ラベル〜封緘を一貫自動化。量産グレードの出荷能力を獲得し、国内全量販対応が完了。"},
-    {eq:"ワックスシール手動封印機",desc:"Maker's Wax風の手作業ワックス封印機を導入。プレミアム外装の演出で販売単価が30%向上。"},
+    {eq:"ワックスシール手動封印機",desc:"Baker's Wax風の手作業ワックス封印機を導入。プレミアム外装の演出で販売単価が30%向上。"},
     {eq:"シリアルナンバー刻印機",desc:"本数限定シングルカスクボトルに固有番号を自動刻印。コレクター市場での希少性・需要が急増。"},
     {eq:"ロボット梱包・輸出出荷自動化システム",desc:"ピッキング・梱包・仕分け・輸出ラベルまでロボットが完全無人化。世界中の販売チャネルへ24時間即日対応体制が完成。"}
   ]
@@ -1499,14 +1541,17 @@ function autoSellTick(){
     const p=wp(w.id);
     const cc=Math.round(p*BALANCE.CRAFT_COST_RATIO);
     if(G.cash<cc){return;}
-    G.cash-=cc;G.cash+=p;G.te+=p;
+    G.cash-=cc; // 製造コストのみ先に引く
     G.cw[w.id]=(G.cw[w.id]||0)+1;
     if(!G.uw.includes(w.id))G.uw.push(w.id);
     const stock=(G.inv[w.id]||0)+1;
     if(stock>=BALANCE.AM_AUTO_SELL_THRESHOLD){
+      // 在庫+今回製造分をまとめて販売（二重加算を防ぐ）
       G.cash+=p*stock;G.te+=p*stock;
       G.inv[w.id]=0;
     }else{
+      // 閾値未達: 1本分の収益を計上して在庫に加算
+      G.cash+=p;G.te+=p;
       G.inv[w.id]=stock;
     }
     const repGain=w?[0.01,0.05,0.20][Math.max(0,(w.st||1)-1)]:0.01;
@@ -1706,26 +1751,14 @@ function chkUnlocks(){
 
 // ===== オフライン補正 =====
 function offline(){
-  const now=Date.now();
-  const elapsedMs=Math.max(0,now-G.ls);
-  const hours=Math.min(elapsedMs/3600000,BALANCE.OFFLINE_CAP_H);
-  G.ls=now;
-  try{console.log('[offline]',{elapsedMs,hours:hours.toFixed(3),tiPerH:ti()});}catch(e){}
-  if(hours<=0)return;
-  // 施設受動収益のみ（自動製造・在庫シミュは除去）
-  const facEarned=ti()*hours;
-  if(isFinite(facEarned)&&facEarned>0){
-    G.cash+=facEarned;G.te+=facEarned;
-    setTimeout(()=>toast('💤 オフライン収益: +'+fmt(facEarned)+' ('+hours.toFixed(1)+'h)',6000),150);
-  }else if(elapsedMs>120000){
-    setTimeout(()=>toast('💤 '+hours.toFixed(1)+'時間離脱（収益なし: 施設をLv1以上に拡張してください）',5000),150);
-  }
+  // オフライン収益なし: アクティブプレイのみで進行する設計
+  G.ls=Date.now();
 }
 
 // ===== タイトル =====
 function gTitle(){
   // 優先度高順: 制覇＞高Tier＞高売上＞テイスター＞その他
-  const order=['t15','t13','t12','t10','t9','t14','t8','t7','t6','t16','t11','t5','t4','t3','t2','t1'];
+  const order=['t15','t21b','t21','t13','t20c','t12','t18d','t11e','t11d','t10','t9','t14','t5b','t20b','t18c','t8','t7','t19c','t11c','t5','t16b','t4b','t11b','t6','t16','t11','t18b','t17b','t4','t3b','t2d','t3','t2c','t2b','t2','t1'];
   for(const id of order){
     if(G.tl.includes(id)){
       const t=TT.find(x=>x.id===id);
@@ -1964,6 +1997,78 @@ function purchaseRegion(id){
   chkT();chkUnlocks();rall();
 }
 
+
+// ===== 施設図鑑 =====
+function openFacModal(facId){
+  const f=FD.find(x=>x.id===facId);if(!f)return;
+  const st=G.fac&&G.fac[facId]||{l:0,p:false};
+  const lvl=st.l||0;
+  const MAX_SLOTS=50;
+  const upgs=FAC_UPG[facId]||[];
+
+  let slots='';
+  for(let i=0;i<MAX_SLOTS;i++){
+    const lv=i+1;
+    const unlocked=st.p&&i<lvl;
+    const isCurrent=unlocked&&i===lvl-1;
+    const u=upgs[i%10]||(upgs[upgs.length-1]||{eq:'拡張設備',desc:'さらなる高みへの拡張。'});
+    const tierNum=Math.ceil(lv/10);
+    const tierLabel=lv%10===0?` [Tier${tierNum}上限]`:'';
+
+    if(unlocked){
+      slots+=`<div style="padding:10px 12px;margin-bottom:6px;background:${isCurrent?'linear-gradient(135deg,var(--bg3),var(--panel))':'var(--bg2)'};border:1px solid ${isCurrent?'var(--gold)':'var(--border)'};border-left:3px solid ${isCurrent?'var(--gold)':'var(--amber)'};border-radius:8px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <span style="font-family:var(--fm);font-size:10px;background:var(--gold);color:#1a1208;border-radius:4px;padding:1px 6px;font-weight:700">Lv${lv}${tierLabel}</span>
+          <span style="font-family:var(--fd);font-size:13px;color:var(--cream);font-weight:700">${escapeHtml(u.eq)}</span>
+          ${isCurrent?'<span style="font-family:var(--fm);font-size:9px;background:var(--green);color:#fff;border-radius:3px;padding:1px 5px">現在</span>':''}
+        </div>
+        <div style="font-family:var(--fb);font-size:11px;color:var(--text2);line-height:1.6;padding-left:4px">${escapeHtml(u.desc)}</div>
+      </div>`;
+    } else {
+      const isNext=st.p&&i===lvl;
+      slots+=`<div style="padding:7px 12px;margin-bottom:4px;background:${isNext?'var(--bg3)':'var(--bg2)'};border:1px solid ${isNext?'var(--border)':'transparent'};border-radius:6px;opacity:${isNext?'0.7':'0.35'}">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-family:var(--fm);font-size:10px;color:var(--muted);min-width:36px">Lv${lv}${tierLabel}</span>
+          <span style="font-family:var(--fm);font-size:11px;color:var(--muted)">🔒 ${isNext?'次の強化で解禁':'未解禁'}</span>
+        </div>
+      </div>`;
+    }
+  }
+
+  const progress=Math.round(lvl/MAX_SLOTS*100);
+  $('mc2').innerHTML=
+    '<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">'+
+    '<span style="font-size:32px">'+f.icon+'</span>'+
+    '<div style="flex:1">'+
+    '<div style="font-family:var(--fd);font-size:18px;font-weight:900;color:var(--gold2)">'+escapeHtml(f.name)+'</div>'+
+    '<div style="font-family:var(--fm);font-size:11px;color:var(--muted);margin-top:2px">設備解禁: '+lvl+' / '+MAX_SLOTS+'</div>'+
+    '<div style="background:var(--bg3);border-radius:3px;height:5px;margin-top:6px;overflow:hidden">'+
+    '<div style="width:'+progress+'%;height:100%;background:linear-gradient(90deg,var(--amber),var(--gold));border-radius:3px;transition:width .4s"></div>'+
+    '</div></div></div>'+
+    '<div style="max-height:55vh;overflow-y:auto;padding-right:2px">'+slots+'</div>'+
+    '<div style="margin-top:12px"><button class="btn-cancel" data-act="closeM">閉じる</button></div>';
+  $('mo').classList.remove('h');
+}
+
+function renderFacEncyclopedia(){
+  const el=$('facEncEl');if(!el)return;
+  const MAX_SLOTS=50;
+  el.innerHTML=FD.map(f=>{
+    const st=G.fac&&G.fac[f.id]||{l:0,p:false};
+    const lvl=st.l||0;
+    const progress=Math.round(lvl/MAX_SLOTS*100);
+    const purchased=!!st.p;
+    return '<div onclick="openFacModal(\''+f.id+'\')" style="display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid '+(purchased?'var(--border)':'var(--bg3)')+';border-radius:8px;padding:10px 12px;margin-bottom:8px;cursor:pointer;opacity:'+(purchased?'1':'0.55')+'" >'+
+      '<span style="font-size:22px">'+f.icon+'</span>'+
+      '<div style="flex:1;min-width:0">'+
+      '<div style="font-family:var(--fm);font-size:13px;font-weight:600;color:'+(purchased?'var(--cream)':'var(--muted)')+'">'+escapeHtml(f.name)+'</div>'+
+      '<div style="font-family:var(--fm);font-size:10px;color:var(--muted);margin-top:2px">'+(purchased?'Lv '+lvl+' / '+MAX_SLOTS+' ・ タップで詳細':f.ul)+'</div>'+
+      (purchased?'<div style="background:var(--bg3);border-radius:3px;height:3px;margin-top:4px;overflow:hidden"><div style="width:'+progress+'%;height:100%;background:linear-gradient(90deg,var(--amber),var(--gold));border-radius:3px"></div></div>':'')+
+      '</div>'+
+      (purchased?'<span style="font-family:var(--fm);font-size:10px;color:var(--gold)">▶</span>':'<span style="font-family:var(--fm);font-size:10px;color:var(--muted)">🔒</span>')+
+      '</div>';
+  }).join('');
+}
 function renc(){
   const u=G.uw.length,tot=WL.length;
   $('ecl').textContent=u+' / '+tot+' 解禁';
@@ -2003,6 +2108,7 @@ function renc(){
     frag.appendChild(c);
   });
   g.appendChild(frag);
+  renderFacEncyclopedia();
 }
 
 function rprof(){
@@ -2247,13 +2353,15 @@ function openAuction(caskId){
   G.cash+=finalPrice;G.te+=finalPrice;
   G.casks=G.casks.filter(c=>c.id!==caskId);
   G.auctionCooldown=Date.now()+3600000*6;
+  const _cask=G.casks; // already filtered
+  changeRep(Math.round(mult*2), 'オークション落札');
   save();
   sndAuction(mult);
   const label=mult>=10?'💎 伝説落札':mult>=5?'🏆 大成功':mult>=3?'⭐ 好落札':mult>=2?'✅ 落札':'📋 落札';
   toast(label+' '+mult+'x! +'+fmt(finalPrice),5000);
   rall();
 }
-const PRESTIGE_COST=30000000000; // $25B: Tier5で8hr程度のグラインド
+const PRESTIGE_COST=35000000000; // $35B: T5 28hr目安 // $25B: Tier5で8hr程度のグラインド
 function canPrestige(){
   if(G.dl<DL.length)return false;
   if(!FD.every(f=>{const s=G.fac&&G.fac[f.id];return s&&s.p&&s.l>=facMaxLv();}))return false;
