@@ -191,6 +191,7 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--fb);height:10
 .combo-lv2 svg,.combo-lv2 img{filter:drop-shadow(0 0 16px rgba(200,150,42,.8))}
 .combo-lv3 svg,.combo-lv3 img{filter:drop-shadow(0 0 24px rgba(232,185,74,.95))}
 .combo-lv4 svg,.combo-lv4 img{animation:barrelPulse 1.2s ease-in-out infinite}
+@keyframes mgBubbleIn{0%{transform:translateY(-50%) scale(0);opacity:0}100%{transform:translateY(-50%) scale(1);opacity:1}}
 @keyframes barrelPulse{
   0%,100%{filter:drop-shadow(0 0 28px rgba(255,248,192,1)) drop-shadow(0 0 10px var(--gold2))}
   50%    {filter:drop-shadow(0 0 44px rgba(255,248,192,1)) drop-shadow(0 0 18px var(--gold2)) brightness(1.15)}
@@ -262,32 +263,7 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--fb);height:10
         </div>
         <button class="ub" id="dub">$200K</button>
       </div>
-      <!-- バッチ蒸留ボタン -->
-      <div id="batchSection" style="width:100%;padding:0 8px 8px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-          <span class="uf f10 um">✂️ バッチ蒸留</span>
-          <span id="cutBonusInfo" class="uf f10 ug2"></span>
-        </div>
-        <button id="btnDistill" onclick="executeBatch()" style="width:100%;background:var(--gb);border:none;border-radius:8px;padding:10px;font-family:var(--fm);font-size:13px;font-weight:600;color:#1a1208;cursor:pointer">
-          🏭 蒸留実行（カット選択でボーナス取得）
-        </button>
-      </div>
-      <!-- カット選択エリア（バッチ実行時に表示） -->
-      <div id="cutArea" style="display:none;width:100%;padding:0 8px 8px">
-        <div style="font-family:var(--fm);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">✂️ カット選択</div>
-        <div id="cutBar" style="position:relative;width:100%;height:28px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;overflow:hidden;margin-bottom:8px">
-          <div style="position:absolute;left:0;width:15%;height:100%;background:rgba(200,50,50,.25)"></div>
-          <div style="position:absolute;left:15%;width:60%;height:100%;background:rgba(50,200,100,.15)"></div>
-          <div style="position:absolute;left:75%;width:25%;height:100%;background:rgba(200,150,50,.2)"></div>
-          <div id="cutProgress" style="position:absolute;top:0;left:0;width:0%;height:100%;background:linear-gradient(90deg,var(--amber),var(--gold2));opacity:.8"></div>
-        </div>
-        <div style="display:flex;gap:6px">
-          <button id="btnCutStart2" onclick="startBatchCut()" style="flex:1;background:var(--amber);border:none;border-radius:6px;padding:7px;font-family:var(--fm);font-size:12px;color:#1a1208;font-weight:600;cursor:pointer">蒸留開始</button>
-          <button id="btnCutMark2" onclick="markBatchCutStart()" style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:7px;font-family:var(--fm);font-size:12px;color:var(--muted);cursor:pointer;display:none">カット開始</button>
-          <button id="btnCutEnd2" onclick="markBatchCutEnd()" style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:7px;font-family:var(--fm);font-size:12px;color:var(--muted);cursor:pointer;display:none">カット終了</button>
-        </div>
-        <div id="cutResult2" style="font-family:var(--fm);font-size:12px;color:var(--gold2);text-align:center;margin-top:6px;min-height:16px"></div>
-      </div>
+
     </div>
     <!-- BUSINESS -->
     <div id="tb" class="tab">
@@ -439,6 +415,14 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--fb);height:10
 
 <div class="toast" id="toast"></div>
 
+<!-- ===== ミニゲーム モーダル ===== -->
+<div id="mgModal" class="mo h" onclick="mgModalBgClick(event)">
+  <div class="mb" style="max-height:78vh;padding:20px 16px 24px;overflow-y:auto">
+    <button class="mc" onclick="closeMgModal()">×</button>
+    <div id="mgModalContent"></div>
+  </div>
+</div>
+
 <!-- ===================== LIFF 設定 ===================== -->
 <script id="liff-config">
 // ▼▼▼ ここを LINE Developers Console で取得した自身の LIFF ID に書き換えてください ▼▼▼
@@ -587,8 +571,8 @@ const BALANCE = {
   UI_REFRESH_MS: 2000,
   MAX_LV: 10,
   SCHEMA_VERSION: 6,
-  APP_VERSION: '3.6.0',
-  APP_DATE: '2026-05-31',
+  APP_VERSION: '3.7.0',
+  APP_DATE: '2026-06-02',
   STORAGE_PREFIX: 'we_v4:',
 
   AM_BASE_INTERVAL_MS: 30000,
@@ -652,7 +636,6 @@ function getBrandFacAny(facId){return (G.fac&&G.fac[facId]&&G.fac[facId].l)||0;}
 
 function getBrandFac(brandId){return G.fac||{};}
 
-function getBrandCut(brandId){if(!G.cut)G.cut={qualBonus:1.0,active:false,progress:0,startTime:null,cutStart:null,cutEnd:null,duration:8000};return G.cut;}
 
 function autoSellRequiredBotLv(st){
 
@@ -683,16 +666,16 @@ function cuc(){
   return Math.round(BALANCE.TAP_COST_BASE*Math.pow(BALANCE.TAP_COST_MUL,G.cl||0)*distMult());
 }
 function cv(){
-
   const cutB=G._cutBonus||1.0;
-  return BALANCE.TAP_BASE*distMult()*Math.pow(BALANCE.TAP_MUL,G.cl||0)*cutB*saleMult()*(G.prestige&&G.prestige.bonus||1)*getEventMult('tap');
+  return BALANCE.TAP_BASE*distMult()*Math.pow(BALANCE.TAP_MUL,G.cl||0)*cutB*saleMult()*(G.prestige&&G.prestige.bonus||1)*getEventMult('tap')*getMgTapMult();
 }
 function fi(id){
   const f=FD.find(x=>x.id===id);if(!f)return 0;
   const s=G.fac&&G.fac[id];if(!s||!s.p||s.l===0)return 0;
 
   const _psMult=1+(((G.prestige&&G.prestige.skills&&G.prestige.skills['ps_passive'])||0)*0.2);
-  return f.bi*dm()*tierBonus()*Math.pow(BALANCE.FAC_INC_MUL,s.l)*saleMult()*(G.dbgMul||1)*(G.prestige&&G.prestige.bonus||1)*_psMult*getEventMult('passive');
+  const _mgFacMult=(['maturation','bottling'].includes(id)?getMgFacMult(id):1.0);
+  return f.bi*dm()*tierBonus()*Math.pow(BALANCE.FAC_INC_MUL,s.l)*saleMult()*(G.dbgMul||1)*(G.prestige&&G.prestige.bonus||1)*_psMult*getEventMult('passive')*_mgFacMult;
 }
 function ti(){return FD.reduce((s,f)=>s+fi(f.id),0);}
 
@@ -704,7 +687,7 @@ function tapMaxLv(){
 
 
   const _tapCap=((G.prestige&&G.prestige.skills&&G.prestige.skills['ps_tap_cap'])||0)*2;
-  return Math.min(BALANCE.MAX_LV,(G.dl||1)*2+_tapCap);
+  return Math.min(BALANCE.MAX_LV,(G.dl||1)*4+_tapCap);
 }
 
 function fuc(id){
@@ -803,6 +786,698 @@ function _tone(freq,dur,type,vol,delay){
   o.start(ctx.currentTime+(delay||0));
   o.stop(ctx.currentTime+(delay||0)+dur+0.02);
 }
+
+// ============================================================
+// ミニゲーム 共通基盤 (Phase 1)
+// ============================================================
+
+/* ---- ボーナス乗算取得 ---- */
+function getMgTapMult(){
+  const now=Date.now();
+  return ['malting','mashing','fermentation','distillation'].reduce((m,id)=>{
+    const s=G.mg&&G.mg[id];
+    return m*(s&&s.bonusUntil>now?s.bonusMult:1.0);
+  },1.0);
+}
+function getMgFacMult(facId){
+  const now=Date.now();
+  const s=G.mg&&G.mg[facId];
+  return (s&&s.bonusUntil>now)?s.bonusMult:1.0;
+}
+
+/* ---- CDフォーマット ---- */
+function fmtCdSec(nextAt){
+  const s=Math.max(0,Math.ceil((nextAt-Date.now())/1000));
+  return s>=3600?Math.ceil(s/3600)+'時間':s>=60?Math.ceil(s/60)+'分':s+'秒';
+}
+
+/* ---- ボーナス適用（各ミニゲーム終了時に呼ぶ） ---- */
+function applyMgBonus(facId,mult,durationMs,cdMs){
+  if(!G.mg)G.mg={};
+  if(!G.mg[facId])G.mg[facId]={nextAt:0,bonusUntil:0,bonusMult:1.0};
+  const now=Date.now();
+  G.mg[facId].bonusMult=mult;
+  G.mg[facId].bonusUntil=now+durationMs;
+  G.mg[facId].nextAt=now+cdMs;
+  closeMgModal();
+  const pct=Math.round((mult-1)*100);
+  toast(`🎮 +${pct}%ボーナス獲得！ ${Math.round(durationMs/1000)}秒間有効`);
+  rall();
+}
+
+/* ---- タイマー管理 ---- */
+const _mgTimers={};
+function _mgSetInterval(key,fn,ms){clearInterval(_mgTimers[key]);_mgTimers[key]=setInterval(fn,ms);}
+function _mgSetTimeout(key,fn,ms){clearTimeout(_mgTimers[key]);_mgTimers[key]=setTimeout(fn,ms);}
+function clearAllMgTimers(){Object.keys(_mgTimers).forEach(k=>{clearInterval(_mgTimers[k]);clearTimeout(_mgTimers[k]);});}
+
+/* ---- モーダル開閉 ---- */
+const _mgRenderers={};
+const _mgInits={};
+
+function openMiniGame(facId){
+  if(!G.mg||!G.mg[facId])return;
+  const s=G.mg[facId];
+  const now=Date.now();
+  if(s.nextAt>now||s.bonusUntil>now)return;
+  const r=_mgRenderers[facId];
+  if(!r){
+    document.getElementById('mgModalContent').innerHTML=
+      `<div style="font-family:var(--fd);font-size:20px;color:var(--gold2);margin-bottom:8px">🚧 準備中</div>`+
+      `<div style="font-family:var(--fm);font-size:12px;color:var(--muted)">このミニゲームは近日公開予定です。</div>`;
+  }else{
+    document.getElementById('mgModalContent').innerHTML=r(facId);
+    if(_mgInits[facId])_mgInits[facId]();
+  }
+  document.getElementById('mgModal').classList.remove('h');
+}
+function closeMgModal(){
+  clearAllMgTimers();
+  document.getElementById('mgModal').classList.add('h');
+}
+function mgModalBgClick(e){
+  if(e.target===document.getElementById('mgModal'))closeMgModal();
+}
+
+/* ---- CDカウント表示を1秒ごとに更新 ---- */
+/* ---- 蒸留ミニゲームの品質ボーナス取得 ---- */
+function getMgDistillationQual(){
+  const s=G.mg&&G.mg.distillation;
+  if(!s)return 1.0;
+  // bonusMult: 0.5〜2.0（qualBonusFromQuality と同じ範囲）
+  return s.bonusMult||1.0;
+}
+
+/* ---- 蒸留器ミニゲーム ---- */
+function renderMgDistillation(){
+  return `
+  <div style="font-family:var(--fd);font-size:20px;font-weight:900;color:var(--gold2);margin-bottom:4px">⚗️ カット判断</div>
+  <div style="font-family:var(--fm);font-size:11px;color:var(--muted);margin-bottom:14px">ハートゾーン（緑帯）でカット開始・終了を押して原酒品質を最大化</div>
+  <div id="mgCutBar" style="position:relative;width:100%;height:32px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;overflow:hidden;margin-bottom:10px">
+    <div style="position:absolute;left:0;width:15%;height:100%;background:rgba(200,50,50,.3)"></div>
+    <div style="position:absolute;left:15%;width:60%;height:100%;background:rgba(50,200,100,.18)"></div>
+    <div style="position:absolute;left:75%;width:25%;height:100%;background:rgba(200,150,50,.25)"></div>
+    <div style="position:absolute;top:4px;left:0;font-family:var(--fm);font-size:9px;color:rgba(255,100,100,.8);padding-left:3px">HEAD</div>
+    <div style="position:absolute;top:4px;left:18%;font-family:var(--fm);font-size:9px;color:rgba(100,220,120,.9)">❤️ HEART</div>
+    <div style="position:absolute;top:4px;right:3px;font-family:var(--fm);font-size:9px;color:rgba(200,150,80,.8)">TAIL</div>
+    <div id="mgCutProgress" style="position:absolute;bottom:0;left:0;width:0%;height:4px;background:linear-gradient(90deg,var(--amber),var(--gold2));transition:width .05s linear"></div>
+    <div id="mgCutMarker" style="position:absolute;top:0;bottom:0;width:2px;background:var(--gold2);display:none;box-shadow:0 0 6px var(--gold2)"></div>
+  </div>
+  <div style="display:flex;gap:8px;margin-bottom:10px">
+    <button id="mgBtnCutStart" onclick="mgCutStart()" style="flex:1;background:var(--gb);border:none;border-radius:6px;padding:10px;font-family:var(--fm);font-size:13px;font-weight:600;color:#1a1208;cursor:pointer">▶ 蒸留開始</button>
+    <button id="mgBtnCutMark"  onclick="mgCutMark()"  style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px;font-family:var(--fm);font-size:13px;color:var(--muted);cursor:pointer;display:none">✂️ カット開始</button>
+    <button id="mgBtnCutEnd"   onclick="mgCutEnd()"   style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px;font-family:var(--fm);font-size:13px;color:var(--muted);cursor:pointer;display:none">🔒 カット終了</button>
+  </div>
+  <div id="mgCutResult" style="font-family:var(--fm);font-size:12px;color:var(--gold2);text-align:center;min-height:18px"></div>
+  <div style="margin-top:10px;font-family:var(--fm);font-size:10px;color:var(--muted);text-align:center">成功でタップ収益ボーナス（60秒）＋樽熟成品質アップ</div>
+  `;
+}
+
+let _mgCutState={active:false,progress:0,startTime:0,cutStart:null,duration:6000};
+
+function initMgDistillation(){
+  const lv=(G.fac&&G.fac.distillation&&G.fac.distillation.l)||0;
+  _mgCutState={active:false,progress:0,startTime:0,cutStart:null,duration:Math.max(4000,8000-lv*300)};
+}
+
+function mgCutStart(){
+  if(_mgCutState.active)return;
+  _mgCutState.active=true;
+  _mgCutState.progress=0;
+  _mgCutState.cutStart=null;
+  _mgCutState.startTime=Date.now();
+  const s=$('mgBtnCutStart'),m=$('mgBtnCutMark'),r=$('mgCutResult');
+  if(s)s.style.display='none';
+  if(m){m.style.display='';m.style.background='var(--amber)';m.style.color='#1a1208';}
+  if(r)r.textContent='🔥 蒸留中... ハートゾーン（緑帯）に入ったらカット開始！';
+  _mgSetInterval('mgCut',()=>{
+    const elapsed=Date.now()-_mgCutState.startTime;
+    _mgCutState.progress=Math.min(1,elapsed/_mgCutState.duration);
+    const p=$('mgCutProgress');
+    if(p)p.style.width=(_mgCutState.progress*100)+'%';
+    if(_mgCutState.progress>=1){
+      clearInterval(_mgTimers['mgCut']);
+      if(!_mgCutState.cutEnd)mgCutEnd();
+    }
+  },50);
+}
+
+function mgCutMark(){
+  if(!_mgCutState.active||_mgCutState.cutStart!==null)return;
+  _mgCutState.cutStart=_mgCutState.progress;
+  const mk=$('mgCutMarker'),m=$('mgBtnCutMark'),e=$('mgBtnCutEnd'),r=$('mgCutResult');
+  if(mk){mk.style.left=(_mgCutState.progress*100)+'%';mk.style.display='';}
+  if(m)m.style.display='none';
+  if(e){e.style.display='';e.style.background='var(--amber)';e.style.color='#1a1208';}
+  if(r)r.textContent='✂️ ハートゾーンが終わる前にカット終了！';
+}
+
+function mgCutEnd(){
+  if(!_mgCutState.active)return;
+  clearInterval(_mgTimers['mgCut']);
+  _mgCutState.active=false;
+  const start=_mgCutState.cutStart!==null?_mgCutState.cutStart:0;
+  const end=_mgCutState.progress;
+  const q=calcCutQuality(start,end);
+  const bonus=qualBonusFromQuality(q);
+  // qualBonus を G.mg.distillation + G.cut 両方に即座反映
+  G.cut={qualBonus:bonus,active:false,progress:0,startTime:null,cutStart:null,cutEnd:null,duration:8000};
+  // 品質ボーナスを即座にG.mgにも反映（fillCask即時対応）
+  if(!G.mg)G.mg={};
+  if(!G.mg.distillation)G.mg.distillation={nextAt:0,bonusUntil:0,bonusMult:1.0};
+  G.mg.distillation.bonusMult=bonus;
+  G.mg.distillation.bonusUntil=Date.now()+62000;
+  const pct=Math.round(q*100);
+  const r=$('mgCutResult');
+  if(r)r.textContent='🔬 ハート取得率 '+pct+'% → 品質ボーナス ×'+bonus.toFixed(2);
+  // 蒸留ミニゲームボーナス適用（タップ収益60秒、CD20分）
+  _mgSetTimeout('mgCutClose',()=>{
+    applyMgBonus('distillation',bonus,60000,20*60*1000);
+  },2000);
+}
+
+_mgRenderers['distillation']=renderMgDistillation;
+_mgInits['distillation']=initMgDistillation;
+
+/* ================================================================
+   ミニゲーム Phase 3: 発酵槽 / ボトリング / 製麦室 / 糖化槽 / 熟成庫
+   ================================================================ */
+
+/* ──────────────────────────────────────────────────────
+   🫧 発酵槽: バブル弾き
+   ────────────────────────────────────────────────────── */
+function renderMgFermentation(){
+  return `
+  <div style="font-family:var(--fd);font-size:20px;font-weight:900;color:var(--gold2);margin-bottom:4px">🫧 泡制御</div>
+  <div style="font-family:var(--fm);font-size:11px;color:var(--muted);margin-bottom:10px">泡が消える前にタップして弾こう！</div>
+  <div style="display:flex;justify-content:space-between;font-family:var(--fm);font-size:12px;margin-bottom:8px">
+    <span>残り: <span id="mgFermTime" style="color:var(--gold2);font-weight:600">15</span>s</span>
+    <span>弾いた: <span id="mgFermScore" style="color:var(--green);font-weight:600">0</span></span>
+  </div>
+  <div id="mgFermArea" style="position:relative;width:100%;height:200px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;overflow:hidden;touch-action:none"></div>
+  <div id="mgFermResult" style="font-family:var(--fm);font-size:12px;color:var(--gold2);text-align:center;margin-top:8px;min-height:16px"></div>
+  `;
+}
+
+let _mgFerm={active:false,popped:0,total:0,timer:null,tickTimer:null,timeLeft:15};
+
+function initMgFermentation(){
+  _mgFerm={active:true,popped:0,total:0,timeLeft:15};
+  const lv=(G.fac&&G.fac.fermentation&&G.fac.fermentation.l)||1;
+  const interval=Math.max(600,1200-lv*50);
+  _mgSetInterval('mgFermSpawn',()=>{
+    if(!_mgFerm.active)return;
+    _spawnBubble(lv);
+  },interval);
+  _mgSetInterval('mgFermTick',()=>{
+    if(!_mgFerm.active)return;
+    _mgFerm.timeLeft--;
+    const el=$('mgFermTime');
+    if(el)el.textContent=_mgFerm.timeLeft;
+    if(_mgFerm.timeLeft<=0)_finishFermentation();
+  },1000);
+}
+
+function _spawnBubble(lv){
+  const area=$('mgFermArea');
+  if(!area||!_mgFerm.active)return;
+  if(area.querySelectorAll('.mgBubble').length>=6)return;
+  _mgFerm.total++;
+  const size=28+Math.random()*20;
+  const x=Math.random()*(area.clientWidth-size);
+  const y=Math.random()*(area.clientHeight-size);
+  const b=document.createElement('div');
+  b.className='mgBubble';
+  b.style.cssText=`position:absolute;left:${x}px;top:${y}px;width:${size}px;height:${size}px;`+
+    `border-radius:50%;background:radial-gradient(circle at 35% 35%,rgba(100,200,255,.7),rgba(50,150,200,.3));`+
+    `border:1.5px solid rgba(100,200,255,.5);cursor:pointer;display:flex;align-items:center;justify-content:center;`+
+    `font-size:${size*0.5}px;transition:transform .1s;animation:mgBubbleIn .2s ease-out;`;
+  b.textContent='🫧';
+  const lifeMs=2200+lv*50;
+  b.addEventListener('pointerdown',(e)=>{
+    e.preventDefault();
+    if(!_mgFerm.active)return;
+    _mgFerm.popped++;
+    const sc=$('mgFermScore');
+    if(sc)sc.textContent=_mgFerm.popped;
+    b.style.transform='scale(1.4)';
+    b.style.opacity='0';
+    setTimeout(()=>b.remove(),150);
+  });
+  area.appendChild(b);
+  setTimeout(()=>{if(b.parentNode){b.style.opacity='0';b.style.transform='scale(0.2)';setTimeout(()=>b.remove(),300);}},lifeMs);
+}
+
+function _finishFermentation(){
+  _mgFerm.active=false;
+  clearInterval(_mgTimers['mgFermSpawn']);
+  clearInterval(_mgTimers['mgFermTick']);
+  document.querySelectorAll('.mgBubble').forEach(b=>b.remove());
+  const rate=_mgFerm.total>0?_mgFerm.popped/_mgFerm.total:0;
+  const mult=1+rate*0.5;
+  const r=$('mgFermResult');
+  if(r)r.textContent='🎯 '+_mgFerm.popped+'/'+_mgFerm.total+'弾 → +'+Math.round(rate*50)+'%ボーナス';
+  _mgSetTimeout('mgFermClose',()=>applyMgBonus('fermentation',mult,45000,10*60*1000),1800);
+}
+
+_mgRenderers['fermentation']=renderMgFermentation;
+_mgInits['fermentation']=initMgFermentation;
+
+/* ──────────────────────────────────────────────────────
+   🍾 ボトリングライン: 検品
+   ────────────────────────────────────────────────────── */
+function renderMgBottling(){
+  return `
+  <div style="font-family:var(--fd);font-size:20px;font-weight:900;color:var(--gold2);margin-bottom:4px">🍾 検品ライン</div>
+  <div style="font-family:var(--fm);font-size:11px;color:var(--muted);margin-bottom:10px">NG品（⚠️マーク付き）をタップして弾こう！</div>
+  <div style="display:flex;justify-content:space-between;font-family:var(--fm);font-size:12px;margin-bottom:8px">
+    <span>残り: <span id="mgBotTime" style="color:var(--gold2);font-weight:600">20</span>s</span>
+    <span style="color:var(--green)">✅<span id="mgBotHit">0</span> ❌<span id="mgBotMiss">0</span></span>
+  </div>
+  <div id="mgBotTrack" style="position:relative;width:100%;height:80px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;overflow:hidden"></div>
+  <div style="font-family:var(--fm);font-size:10px;color:var(--muted);text-align:center;margin-top:4px">⚠️マーク = NG品</div>
+  <div id="mgBotResult" style="font-family:var(--fm);font-size:12px;color:var(--gold2);text-align:center;margin-top:6px;min-height:16px"></div>
+  `;
+}
+
+let _mgBot={active:false,hit:0,miss:0,falseTap:0,ngTotal:0,timeLeft:20};
+
+function initMgBottling(){
+  const lv=(G.fac&&G.fac.bottling&&G.fac.bottling.l)||1;
+  _mgBot={active:true,hit:0,miss:0,falseTap:0,ngTotal:0,timeLeft:20};
+  const ngRate=0.25+lv*0.03;
+  const spawnMs=Math.max(700,1400-lv*60);
+  _mgSetInterval('mgBotSpawn',()=>{
+    if(!_mgBot.active)return;
+    _spawnBottle(ngRate,lv);
+  },spawnMs);
+  _mgSetInterval('mgBotTick',()=>{
+    if(!_mgBot.active)return;
+    _mgBot.timeLeft--;
+    const el=$('mgBotTime');
+    if(el)el.textContent=_mgBot.timeLeft;
+    if(_mgBot.timeLeft<=0)_finishBottling();
+  },1000);
+}
+
+function _spawnBottle(ngRate,lv){
+  const track=$('mgBotTrack');
+  if(!track||!_mgBot.active)return;
+  const isNg=Math.random()<ngRate;
+  if(isNg)_mgBot.ngTotal++;
+  const b=document.createElement('div');
+  const speed=Math.max(2.5,5-lv*0.3);
+  b.style.cssText=`position:absolute;right:-48px;top:50%;transform:translateY(-50%);`+
+    `width:40px;height:60px;display:flex;flex-direction:column;align-items:center;justify-content:center;`+
+    `cursor:${isNg?'pointer':'default'};user-select:none;`;
+  b.innerHTML=`<div style="font-size:28px">${isNg?'🍾':'🍾'}</div>`+
+    `<div style="font-size:10px;font-family:var(--fm);color:${isNg?'var(--red)':'var(--green)'};font-weight:600">${isNg?'⚠️':' OK'}</div>`;
+  b.dataset.ng=isNg?'1':'0';
+  let x=track.clientWidth+48;
+  const anim=setInterval(()=>{
+    if(!_mgBot.active){clearInterval(anim);b.remove();return;}
+    x-=speed;
+    b.style.right='auto';
+    b.style.left=x+'px';
+    if(x<-50){
+      clearInterval(anim);
+      if(isNg){_mgBot.miss++;const el=$('mgBotMiss');if(el)el.textContent=_mgBot.miss;}
+      b.remove();
+    }
+  },30);
+  b.addEventListener('pointerdown',(e)=>{
+    e.preventDefault();
+    if(!_mgBot.active)return;
+    clearInterval(anim);
+    if(isNg){
+      _mgBot.hit++;
+      const el=$('mgBotHit');if(el)el.textContent=_mgBot.hit;
+      b.style.transition='transform .15s,opacity .15s';
+      b.style.transform='translateY(-50%) scale(1.3)';
+      b.style.opacity='0';
+    }else{
+      _mgBot.falseTap++;
+      b.style.background='rgba(200,64,64,.15)';
+      b.style.borderRadius='6px';
+    }
+    setTimeout(()=>b.remove(),150);
+  });
+  track.appendChild(b);
+}
+
+function _finishBottling(){
+  _mgBot.active=false;
+  clearInterval(_mgTimers['mgBotSpawn']);
+  clearInterval(_mgTimers['mgBotTick']);
+  const precision=_mgBot.ngTotal>0?_mgBot.hit/_mgBot.ngTotal:1;
+  const penalty=Math.max(0,1-_mgBot.falseTap*0.1);
+  const score=precision*penalty;
+  const mult=1+score*0.8;
+  const r=$('mgBotResult');
+  const _botMult=1+score*0.6;
+  if(r)r.textContent='✅'+_mgBot.hit+'/'+_mgBot.ngTotal+'検出 → +'+Math.round(score*60)+'%ボーナス';
+  _mgSetTimeout('mgBotClose',()=>applyMgBonus('bottling',_botMult,90000,15*60*1000),1800);
+}
+
+_mgRenderers['bottling']=renderMgBottling;
+_mgInits['bottling']=initMgBottling;
+
+/* ──────────────────────────────────────────────────────
+   🌾 製麦室: リズムタップ
+   ────────────────────────────────────────────────────── */
+function renderMgMalting(){
+  return `
+  <div style="font-family:var(--fd);font-size:20px;font-weight:900;color:var(--gold2);margin-bottom:4px">🌾 麦かき</div>
+  <div style="font-family:var(--fm);font-size:11px;color:var(--muted);margin-bottom:10px">ノートが判定ライン（右端）に重なったらタップ！</div>
+  <div style="display:flex;justify-content:space-between;font-family:var(--fm);font-size:12px;margin-bottom:6px">
+    <span>残り: <span id="mgMaltTime" style="color:var(--gold2);font-weight:600">15</span>s</span>
+    <span>✨<span id="mgMaltP" style="color:var(--gold)">0</span> 👍<span id="mgMaltG" style="color:var(--green)">0</span> ❌<span id="mgMaltM" style="color:var(--red)">0</span></span>
+  </div>
+  <div id="mgMaltTrack" style="position:relative;width:100%;height:56px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:8px">
+    <div style="position:absolute;right:44px;top:0;bottom:0;width:2px;background:rgba(200,150,42,.5)"></div>
+    <div id="mgMaltJudge" style="position:absolute;right:24px;top:50%;transform:translateY(-50%);font-family:var(--fm);font-size:11px;color:var(--muted)">TAP</div>
+  </div>
+  <button id="mgMaltBtn" ontouchstart="mgMaltTap(event)" onmousedown="mgMaltTap(event)"
+    style="width:100%;padding:14px;background:var(--gb);border:none;border-radius:8px;font-family:var(--fm);font-size:16px;font-weight:600;color:#1a1208;cursor:pointer;-webkit-tap-highlight-color:transparent">
+    🥁 TAP
+  </button>
+  <div id="mgMaltResult" style="font-family:var(--fm);font-size:12px;color:var(--gold2);text-align:center;margin-top:6px;min-height:16px"></div>
+  `;
+}
+
+let _mgMalt={active:false,perfect:0,good:0,miss:0,noteTotal:0,notes:[],timeLeft:15,bpm:90};
+
+function initMgMalting(){
+  const lv=(G.fac&&G.fac.malting&&G.fac.malting.l)||1;
+  _mgMalt={active:true,perfect:0,good:0,miss:0,noteTotal:0,notes:[],timeLeft:15,bpm:90};
+  const intervalMs=Math.max(500,666-lv*10);
+  _mgSetInterval('mgMaltSpawn',()=>{
+    if(!_mgMalt.active)return;
+    _spawnNote();
+  },intervalMs);
+  _mgSetInterval('mgMaltTick',()=>{
+    if(!_mgMalt.active)return;
+    _mgMalt.timeLeft--;
+    const el=$('mgMaltTime');
+    if(el)el.textContent=_mgMalt.timeLeft;
+    if(_mgMalt.timeLeft<=0)_finishMalting();
+  },1000);
+}
+
+function _spawnNote(){
+  const track=$('mgMaltTrack');
+  if(!track||!_mgMalt.active)return;
+  _mgMalt.noteTotal++;
+  const n=document.createElement('div');
+  const travelMs=1200;
+  n.style.cssText=`position:absolute;left:0;top:50%;transform:translateY(-50%);`+
+    `width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--amber),var(--gold2));`+
+    `display:flex;align-items:center;justify-content:center;font-size:14px;transition:left ${travelMs}ms linear;`;
+  n.textContent='🌾';
+  n.dataset.spawnTime=Date.now();
+  track.appendChild(n);
+  requestAnimationFrame(()=>{
+    n.style.left=(track.clientWidth-44)+'px';
+  });
+  // MISS判定: 判定窓(±160ms)を過ぎたら消去
+  setTimeout(()=>{
+    if(n.parentNode){
+      _mgMalt.miss++;
+      const el=$('mgMaltM');if(el)el.textContent=_mgMalt.miss;
+      _showJudge('MISS','var(--red)');
+      n.style.opacity='0';
+      setTimeout(()=>n.remove(),200);
+    }
+  },travelMs+200);
+  _mgMalt.notes.push(n);
+}
+
+function mgMaltTap(e){
+  if(e)e.preventDefault();
+  if(!_mgMalt.active)return;
+  const track=$('mgMaltTrack');
+  if(!track)return;
+  const trackW=track.clientWidth;
+  const judgeX=trackW-44;
+  const PERFECT_MS=80,GOOD_MS=170;
+  // 最も判定ラインに近いノートを探す
+  let best=null,bestDist=Infinity;
+  _mgMalt.notes=_mgMalt.notes.filter(n=>n.parentNode);
+  _mgMalt.notes.forEach(n=>{
+    const elapsed=Date.now()-parseInt(n.dataset.spawnTime);
+    const travelMs=1200;
+    const noteX=(elapsed/travelMs)*(trackW-44);
+    const dist=Math.abs(noteX-judgeX);
+    if(dist<bestDist){bestDist=dist;best=n;}
+  });
+  if(!best)return;
+  const elapsed=Date.now()-parseInt(best.dataset.spawnTime);
+  const travelMs=1200;
+  const noteX=(elapsed/travelMs)*(trackW-44);
+  const distPx=Math.abs(noteX-judgeX);
+  const pxPerMs=(trackW-44)/travelMs;
+  const distMs=distPx/pxPerMs;
+  best.style.opacity='0';
+  best.remove();
+  _mgMalt.notes=_mgMalt.notes.filter(n=>n!==best);
+  if(distMs<=PERFECT_MS){
+    _mgMalt.perfect++;const el=$('mgMaltP');if(el)el.textContent=_mgMalt.perfect;
+    _showJudge('PERFECT!','var(--gold2)');
+  }else if(distMs<=GOOD_MS){
+    _mgMalt.good++;const el=$('mgMaltG');if(el)el.textContent=_mgMalt.good;
+    _showJudge('GOOD','var(--green)');
+  }else{
+    _mgMalt.miss++;const el=$('mgMaltM');if(el)el.textContent=_mgMalt.miss;
+    _showJudge('MISS','var(--red)');
+  }
+}
+
+function _showJudge(text,color){
+  const el=$('mgMaltJudge');
+  if(!el)return;
+  el.textContent=text;el.style.color=color;el.style.fontSize='13px';
+  clearTimeout(_mgTimers['mgMaltJudgeReset']);
+  _mgSetTimeout('mgMaltJudgeReset',()=>{el.textContent='TAP';el.style.color='var(--muted)';el.style.fontSize='11px';},400);
+}
+
+function _finishMalting(){
+  _mgMalt.active=false;
+  clearInterval(_mgTimers['mgMaltSpawn']);
+  clearInterval(_mgTimers['mgMaltTick']);
+  document.querySelectorAll('#mgMaltTrack div[data-spawn-time]').forEach(n=>n.remove());
+  const total=Math.max(1,_mgMalt.perfect+_mgMalt.good+_mgMalt.miss);
+  const rate=(_mgMalt.perfect*1.0+_mgMalt.good*0.5)/total;
+  const mult=1+rate*1.0;
+  const r=$('mgMaltResult');
+  if(r)r.textContent='✨P:'+_mgMalt.perfect+' G:'+_mgMalt.good+' M:'+_mgMalt.miss+' → +'+Math.round(rate*100)+'%ボーナス';
+  _mgSetTimeout('mgMaltClose',()=>applyMgBonus('malting',mult,30000,10*60*1000),1800);
+}
+
+_mgRenderers['malting']=renderMgMalting;
+_mgInits['malting']=initMgMalting;
+
+/* ──────────────────────────────────────────────────────
+   🪣 糖化槽: 温度キープ
+   ────────────────────────────────────────────────────── */
+function renderMgMashing(){
+  return `
+  <div style="font-family:var(--fd);font-size:20px;font-weight:900;color:var(--gold2);margin-bottom:4px">🪣 仕込み温度管理</div>
+  <div style="font-family:var(--fm);font-size:11px;color:var(--muted);margin-bottom:10px">スライダーで温度を調整して緑ゾーン（64–67°C）をキープ！</div>
+  <div style="display:flex;justify-content:space-between;font-family:var(--fm);font-size:12px;margin-bottom:8px">
+    <span>残り: <span id="mgMashTime" style="color:var(--gold2);font-weight:600">20</span>s</span>
+    <span>現在: <span id="mgMashTemp" style="color:var(--gold2);font-weight:600">60.0</span>°C</span>
+    <span>キープ: <span id="mgMashKeep" style="color:var(--green);font-weight:600">0.0</span>s</span>
+  </div>
+  <div style="position:relative;width:100%;height:28px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;overflow:hidden;margin-bottom:10px">
+    <div style="position:absolute;left:0;right:0;top:0;bottom:0;display:flex;align-items:center">
+      <div style="width:46.7%;height:100%;background:rgba(200,50,50,.15)"></div>
+      <div style="width:10%;height:100%;background:rgba(50,200,100,.3)"></div>
+      <div style="width:43.3%;height:100%;background:rgba(200,100,50,.15)"></div>
+    </div>
+    <div style="position:absolute;top:4px;left:2px;font-family:var(--fm);font-size:9px;color:var(--muted)">50°C</div>
+    <div style="position:absolute;top:4px;right:2px;font-family:var(--fm);font-size:9px;color:var(--muted)">80°C</div>
+    <div style="position:absolute;top:2px;left:47%;font-family:var(--fm);font-size:9px;color:rgba(100,220,120,.9)">64–67</div>
+    <div id="mgMashCursor" style="position:absolute;top:2px;bottom:2px;width:3px;background:var(--gold2);border-radius:2px;box-shadow:0 0 6px var(--gold2);left:33%;transition:left .1s"></div>
+  </div>
+  <input type="range" id="mgMashSlider" min="0" max="100" value="33"
+    oninput="mgMashSlide(this.value)"
+    style="width:100%;accent-color:var(--gold);margin-bottom:8px;cursor:pointer">
+  <div id="mgMashResult" style="font-family:var(--fm);font-size:12px;color:var(--gold2);text-align:center;min-height:16px"></div>
+  `;
+}
+
+let _mgMash={active:false,temp:60,drift:0,sliderVal:33,keepTime:0,timeLeft:20,tickMs:50};
+
+function initMgMashing(){
+  const lv=(G.fac&&G.fac.mashing&&G.fac.mashing.l)||1;
+  _mgMash={active:true,temp:60,drift:0,sliderVal:33,keepTime:0,timeLeft:20,tickMs:50};
+  const driftStr=Math.max(0.5,2.0-lv*0.1);
+  _mgSetInterval('mgMashPhys',()=>{
+    if(!_mgMash.active)return;
+    _mgMash.drift+=(Math.random()-0.5)*driftStr;
+    _mgMash.drift*=0.92;
+    const control=(_mgMash.sliderVal-50)*0.04;
+    _mgMash.temp=Math.max(50,Math.min(80,_mgMash.temp+_mgMash.drift*0.1+control));
+    const inZone=_mgMash.temp>=64&&_mgMash.temp<=67;
+    if(inZone)_mgMash.keepTime+=_mgMash.tickMs/1000;
+    const pct=(_mgMash.temp-50)/30;
+    const cur=$('mgMashCursor');
+    if(cur)cur.style.left=(pct*96)+'%';
+    const tempEl=$('mgMashTemp');
+    if(tempEl){
+      tempEl.textContent=_mgMash.temp.toFixed(1);
+      tempEl.style.color=inZone?'var(--green)':'var(--red)';
+    }
+    const keepEl=$('mgMashKeep');
+    if(keepEl)keepEl.textContent=_mgMash.keepTime.toFixed(1);
+  },_mgMash.tickMs);
+  _mgSetInterval('mgMashTick',()=>{
+    if(!_mgMash.active)return;
+    _mgMash.timeLeft--;
+    const el=$('mgMashTime');
+    if(el)el.textContent=_mgMash.timeLeft;
+    if(_mgMash.timeLeft<=0)_finishMashing();
+  },1000);
+}
+
+function mgMashSlide(val){
+  _mgMash.sliderVal=parseInt(val);
+}
+
+function _finishMashing(){
+  _mgMash.active=false;
+  clearInterval(_mgTimers['mgMashPhys']);
+  clearInterval(_mgTimers['mgMashTick']);
+  const rate=Math.min(1,_mgMash.keepTime/12);
+  const mult=1+rate*0.5;
+  const r=$('mgMashResult');
+  if(r)r.textContent='🌡️ キープ'+_mgMash.keepTime.toFixed(1)+'s → +'+Math.round(rate*50)+'%ボーナス';
+  _mgSetTimeout('mgMashClose',()=>applyMgBonus('mashing',mult,60000,15*60*1000),1800);
+}
+
+_mgRenderers['mashing']=renderMgMashing;
+_mgInits['mashing']=initMgMashing;
+
+/* ──────────────────────────────────────────────────────
+   🛢️ 熟成庫: 樽配置パズル
+   ────────────────────────────────────────────────────── */
+function renderMgMaturation(){
+  return `
+  <div style="font-family:var(--fd);font-size:20px;font-weight:900;color:var(--gold2);margin-bottom:4px">🛢️ スペース最適化</div>
+  <div style="font-family:var(--fm);font-size:11px;color:var(--muted);margin-bottom:8px">樽を選んでグリッドに配置しよう（残り<span id="mgMatTime" style="color:var(--gold2);font-weight:600">60</span>s）</div>
+  <div style="font-family:var(--fm);font-size:11px;margin-bottom:6px">充填率: <span id="mgMatFill" style="color:var(--green);font-weight:600">0</span>/30マス</div>
+  <div id="mgMatGrid" style="display:grid;grid-template-columns:repeat(6,1fr);gap:3px;margin-bottom:10px"></div>
+  <div style="font-family:var(--fm);font-size:11px;color:var(--muted);margin-bottom:6px">次の樽（タップで選択）:</div>
+  <div id="mgMatPieces" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"></div>
+  <div id="mgMatResult" style="font-family:var(--fm);font-size:12px;color:var(--gold2);text-align:center;min-height:16px"></div>
+  `;
+}
+
+let _mgMat={active:false,grid:[],pieces:[],selected:-1,placed:0,timeLeft:60};
+const MG_MAT_W=6,MG_MAT_H=5;
+const MG_PIECES=[
+  {w:1,h:2,icon:'🛢️'},{w:2,h:1,icon:'🛢️'},
+  {w:2,h:2,icon:'⬛'},{w:1,h:3,icon:'🛢️'},
+  {w:3,h:1,icon:'🛢️'},
+];
+
+function initMgMaturation(){
+  const lv=(G.fac&&G.fac.maturation&&G.fac.maturation.l)||1;
+  _mgMat={active:true,placed:0,selected:-1,timeLeft:60,
+    grid:Array(MG_MAT_H).fill(null).map(()=>Array(MG_MAT_W).fill(0)),
+    pieces:Array(5+Math.min(4,Math.floor(lv/2))).fill(null).map(()=>MG_PIECES[Math.floor(Math.random()*MG_PIECES.length)])
+  };
+  _renderMatGrid();
+  _renderMatPieces();
+  _mgSetInterval('mgMatTick',()=>{
+    if(!_mgMat.active)return;
+    _mgMat.timeLeft--;
+    const el=$('mgMatTime');if(el)el.textContent=_mgMat.timeLeft;
+    if(_mgMat.timeLeft<=0)_finishMaturation();
+  },1000);
+}
+
+function _renderMatGrid(){
+  const g=$('mgMatGrid');if(!g)return;
+  g.innerHTML='';
+  for(let r=0;r<MG_MAT_H;r++){
+    for(let c=0;c<MG_MAT_W;c++){
+      const cell=document.createElement('div');
+      cell.style.cssText=`height:32px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;`+
+        `background:${_mgMat.grid[r][c]?'var(--amber)':'var(--bg3)'};border:1px solid ${_mgMat.grid[r][c]?'var(--gold)':'var(--border)'};`;
+      cell.textContent=_mgMat.grid[r][c]?'🛢️':'';
+      cell.dataset.r=r;cell.dataset.c=c;
+      cell.addEventListener('click',()=>mgMatPlace(r,c));
+      g.appendChild(cell);
+    }
+  }
+}
+
+function _renderMatPieces(){
+  const p=$('mgMatPieces');if(!p)return;
+  p.innerHTML='';
+  _mgMat.pieces.forEach((piece,i)=>{
+    const btn=document.createElement('button');
+    const isSelected=_mgMat.selected===i;
+    btn.style.cssText=`background:${isSelected?'var(--amber)':'var(--bg3)'};border:1px solid ${isSelected?'var(--gold2)':'var(--border)'};`+
+      `border-radius:6px;padding:6px 10px;font-family:var(--fm);font-size:11px;color:${isSelected?'#1a1208':'var(--text)'};cursor:pointer;`;
+    btn.textContent=piece.icon+' '+piece.w+'×'+piece.h;
+    btn.onclick=()=>{_mgMat.selected=(_mgMat.selected===i?-1:i);_renderMatPieces();};
+    p.appendChild(btn);
+  });
+}
+
+function mgMatPlace(r,c){
+  if(!_mgMat.active||_mgMat.selected<0)return;
+  const piece=_mgMat.pieces[_mgMat.selected];
+  if(!piece)return;
+  // 範囲チェック
+  if(r+piece.h>MG_MAT_H||c+piece.w>MG_MAT_W)return;
+  // 重複チェック
+  for(let dr=0;dr<piece.h;dr++)for(let dc=0;dc<piece.w;dc++)if(_mgMat.grid[r+dr][c+dc])return;
+  // 配置
+  for(let dr=0;dr<piece.h;dr++)for(let dc=0;dc<piece.w;dc++){_mgMat.grid[r+dr][c+dc]=1;_mgMat.placed++;}
+  _mgMat.pieces.splice(_mgMat.selected,1);
+  _mgMat.selected=-1;
+  const el=$('mgMatFill');if(el)el.textContent=_mgMat.placed;
+  _renderMatGrid();
+  _renderMatPieces();
+  if(_mgMat.pieces.length===0)_finishMaturation();
+}
+
+function _finishMaturation(){
+  _mgMat.active=false;
+  clearInterval(_mgTimers['mgMatTick']);
+  const rate=_mgMat.placed/(MG_MAT_W*MG_MAT_H);
+  const mult=1+rate*0.8;
+  const r=$('mgMatResult');
+  if(r)r.textContent='🛢️ '+_mgMat.placed+'/30マス埋 → +'+Math.round(rate*80)+'%ボーナス';
+  _mgSetTimeout('mgMatClose',()=>applyMgBonus('maturation',mult,120000,30*60*1000),1800);
+}
+
+_mgRenderers['maturation']=renderMgMaturation;
+_mgInits['maturation']=initMgMaturation;
+
+
+setInterval(()=>{
+  const now=Date.now();
+  let needRender=false;
+  if(!G.mg)return;
+  ['malting','mashing','fermentation','distillation','maturation','bottling'].forEach(id=>{
+    const s=G.mg[id];
+    if(!s)return;
+    // bonusUntil が切れた直後 or nextAt が切れた直後にボタンを再描画
+    if((s.bonusUntil>0&&s.bonusUntil<now&&s.bonusUntil>now-1500)||
+       (s.nextAt>0&&s.nextAt<now&&s.nextAt>now-1500))needRender=true;
+  });
+  if(needRender)rbus();
+  // CD残り時間テキストだけ更新（DOM書き換えなし）
+  document.querySelectorAll('[data-mg-cd]').forEach(el=>{
+    const id=el.dataset.mgCd;
+    const s=G.mg&&G.mg[id];
+    if(s&&s.nextAt>now)el.textContent='⏳ CD '+fmtCdSec(s.nextAt);
+  });
+},1000);
 
 function sndTap(isCrit,critMult){
   if(isCrit){
@@ -1265,9 +1940,9 @@ const UNLOCK_REQ=[
   {id:"dalvista",req:()=>G.dl>=3&&cw('macallen')>=80,label:"蒸留所Lv3 + MacKallen 80本販売"},
   {id:"yamashiki",req:()=>G.dl>=3&&G.te>=300000000&&cw('nikkei_p')>=80,label:"蒸留所Lv3 + 総売上 $300M + Nikkyo Pure 80本"},
   {id:"hakusha",req:()=>G.dl>=4&&cw('yamashiki')>=50,label:"蒸留所Lv4 + Kawasaki 50本販売"},
-  {id:"hibique",req:()=>G.dl>=4,label:"???",secret:true},
-  {id:"pappy_v",req:()=>G.dl>=4&&G.te>=5000000000&&cw('buffalo_t')>=200,label:"???",secret:true},
-  {id:"imperial",req:()=>{const a=WL.filter(w=>w.id!=='imperial');return a.every(w=>G.uw.includes(w.id))&&G.dl>=5;},label:"???",secret:true}
+  {id:"hibique",req:()=>G.dl>=4,label:"???",secret:true,hint:"大規模蒸留所への到達が鍵となる..."},
+  {id:"pappy_v",req:()=>G.dl>=4&&G.te>=5000000000&&cw('buffalo_t')>=200,label:"???",secret:true,hint:"アメリカンバーボンの頂点。膨大な実績と、ある銘柄との深い縁が必要..."},
+  {id:"imperial",req:()=>{const a=WL.filter(w=>w.id!=='imperial');return a.every(w=>G.uw.includes(w.id))&&G.dl>=5;},label:"???",secret:true,hint:"ウィスキー帝国の最高峰。すべての道を歩み、頂点に君臨した者のみが辿り着ける..."}
 ];
 
 function getUnlockInfo(id){
@@ -1395,6 +2070,14 @@ _dmProgress:{},
     story:{unlocked:[],seenNew:[]},
     auctionCooldown:0,
     wCd:{},
+    mg:{
+      malting:      {nextAt:0,bonusUntil:0,bonusMult:1.0},
+      mashing:      {nextAt:0,bonusUntil:0,bonusMult:1.0},
+      fermentation: {nextAt:0,bonusUntil:0,bonusMult:1.0},
+      distillation: {nextAt:0,bonusUntil:0,bonusMult:1.0},
+      maturation:   {nextAt:0,bonusUntil:0,bonusMult:1.0},
+      bottling:     {nextAt:0,bonusUntil:0,bonusMult:1.0},
+    },
   };
 }
 
@@ -1445,6 +2128,13 @@ function sanitize(s){
   s.ls=Number(s.ls)||Date.now();
   s.dbgMul=Math.max(1,Math.min(100000,Number(s.dbgMul)||1));
   s.ver=BALANCE.SCHEMA_VERSION;
+  if(typeof s.mg!=='object'||s.mg===null)s.mg={};
+  ['malting','mashing','fermentation','distillation','maturation','bottling'].forEach(id=>{
+    if(!s.mg[id]||typeof s.mg[id]!=='object')s.mg[id]={nextAt:0,bonusUntil:0,bonusMult:1.0};
+    s.mg[id].nextAt=Math.max(0,Number(s.mg[id].nextAt)||0);
+    s.mg[id].bonusUntil=Math.max(0,Number(s.mg[id].bonusUntil)||0);
+    s.mg[id].bonusMult=Math.min(3,Math.max(0.5,Number(s.mg[id].bonusMult)||1.0));
+  });
   return {...d,...s};
 }
 
@@ -1477,6 +2167,10 @@ if(s.prestige&&!s.prestige.legacyWhiskies)s.prestige.legacyWhiskies=[];
 if(s.prestige&&s.prestige.totalRuns===undefined)s.prestige.totalRuns=0;
   if(!s.cut)s.cut={qualBonus:1.0,active:false,progress:0,startTime:null,cutStart:null,cutEnd:null,duration:8000};
   if(!s.rawMaterials)s.rawMaterials={grain:'golden_promise',water:'soft_spring',yeast:'distillery',peat:'unpeated'};
+  if(!s.mg)s.mg={};
+  ['malting','mashing','fermentation','distillation','maturation','bottling'].forEach(id=>{
+    if(!s.mg[id])s.mg[id]={nextAt:0,bonusUntil:0,bonusMult:1.0};
+  });
   return s;
 }
 
@@ -2512,7 +3206,6 @@ function chkUnlocks(){
 }
 
 function offline(){
-
   G.ls=Date.now();
 }
 
@@ -2530,15 +3223,6 @@ function gTitle(){
 
 function updHdr(){$('hc').textContent=fmt(G.cash);}
 
-function updateBatchBtn(){
-  const btn=$('btnDistill');if(!btn)return;
-  const ok=G.fac&&G.fac.distillation&&G.fac.distillation.p;
-  btn.disabled=!ok;
-  btn.style.background=ok?'var(--gb)':'var(--bg3)';
-  btn.style.color=ok?'#1a1208':'var(--muted)';
-  btn.style.cursor=ok?'pointer':'not-allowed';
-  btn.style.border=ok?'none':'1px solid var(--border)';
-}
 function rdistLight(){
   const v=cv();
   $('sc2').textContent=fmt(v);
@@ -2546,13 +3230,8 @@ function rdistLight(){
   $('sec').textContent=G.uw.length+'/'+WL.length;
   $('si').textContent=fmt(ti())+'/h';
   $('st').textContent=fmt(G.te);
-  updateBatchBtn();
 
-  const cbi=$('cutBonusInfo');
-  if(cbi){
-    const taps=G._cutBonusTaps||0;
-    cbi.textContent=taps>0?'✨ カットボーナス×'+(G._cutBonus||1).toFixed(2)+' (残'+taps+'タップ)':'';
-  }
+
 }
 
 let _tapTierAt=-1;
@@ -2720,7 +3399,15 @@ function rbus(){
       }
       const incTxt=p&&l>0?`<div class="fic">${fmt(inc)}/h</div>`:'';
       const upgTxt=p&&l>0&&FAC_UPG[f.id]&&FAC_UPG[f.id][l-1]?`<div class="fs" style="font-size:10px;color:var(--muted)">${escapeHtml(FAC_UPG[f.id][l-1].eq)}</div>`:'';
-      card.innerHTML=`<div class="fi">${f.icon}</div><div style="flex:1;min-width:0"><div class="fn">${escapeHtml(f.name)}</div><div class="fs">${!p?f.ul:(l===0?'未稼働':'稼働中')}</div>${incTxt}${upgTxt}</div>${btnHtml}`;
+      const mgS=G.mg&&G.mg[f.id];
+      const now=Date.now();
+      const mgActive=mgS&&mgS.bonusUntil>now;
+      const mgCd=mgS&&mgS.nextAt>now&&!mgActive;
+      const mgAvail=p&&l>0&&!mgActive&&!mgCd;
+      const mgBtnLabel=mgActive?`✨ ${Math.round((mgS.bonusMult-1)*100)}%ボーナス中`:mgCd?`⏳ CD ${fmtCdSec(mgS.nextAt)}`:'🎮 ミニゲーム';
+      const mgBtnStyle=mgActive?'background:var(--green);color:#fff;border:none;':'background:var(--bg3);color:var(--muted);border:1px solid var(--border);';
+      const mgRowHtml=p&&l>0?`<div style="width:100%;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)"><button style="width:100%;padding:7px;border-radius:6px;font-family:var(--fm);font-size:12px;font-weight:600;cursor:${mgAvail?'pointer':'default'};${mgAvail?'background:var(--gb);color:#1a1208;border:none;':mgBtnStyle}" ${mgAvail?`onclick="openMiniGame('${f.id}')"`:''} ${mgCd?`data-mg-cd="${f.id}"`:''}>${mgBtnLabel}</button></div>`:'';
+      card.innerHTML=`<div class="fi">${f.icon}</div><div style="flex:1;min-width:0"><div class="fn">${escapeHtml(f.name)}</div><div class="fs">${!p?f.ul:(l===0?'未稼働':'稼働中')}</div>${incTxt}${upgTxt}${mgRowHtml}</div>${btnHtml}`;
       frag.appendChild(card);
     });
     fl.appendChild(frag);
@@ -2871,11 +3558,14 @@ function renc(){
       (autoOn?'<div style="position:absolute;top:3px;right:3px;background:var(--green);color:#fff;border-radius:3px;padding:1px 4px;font-size:9px;font-family:var(--fm);font-weight:600;line-height:1.2">🤖</div>':'')+
       (stock>0?`<div style="position:absolute;bottom:3px;right:3px;background:var(--gold);color:#1a1208;border-radius:3px;padding:1px 4px;font-size:9px;font-family:var(--fm);font-weight:700;line-height:1.2">📦${stock}</div>`:'');
     const unlockReq=UNLOCK_REQ.find(x=>x.id===w.id);
-    const unlockLabel=unlockReq&&unlockReq.label?unlockReq.label:'';
+    const isSecret=unlockReq&&unlockReq.secret;
+    const unlockLabel=isSecret
+      ?(unlockReq.hint||'条件は秘密です...')
+      :(unlockReq&&unlockReq.label?unlockReq.label:'');
     const c=document.createElement('div');
     c.className='wc'+(ul?' ul':' lk');
     c.dataset.id=w.id;
-    c.innerHTML=`<div class="wb">${ul?w.em+'🥃':'❓'}</div><div class="wn">${ul?escapeHtml(w.name):'???'}</div><div class="wr">${ul?escapeHtml(w.rg):'???'}</div><div class="ws">${ul?'★'.repeat(w.st)+'☆'.repeat(3-w.st):'???'}</div>${!ul?`<div class="wlk">🔒<div style="position:absolute;bottom:4px;left:0;right:0;padding:2px 4px;font-size:9px;font-family:var(--fm);color:var(--text2);text-align:center;line-height:1.2;background:rgba(13,10,7,.75);white-space:normal;word-break:break-word">${escapeHtml(unlockLabel)}</div></div>`:''}${badges}`;
+    c.innerHTML=`<div class="wb">${ul?w.em+'🥃':'❓'}</div><div class="wn">${ul?escapeHtml(w.name):'???'}</div><div class="wr">${ul?escapeHtml(w.rg):'???'}</div><div class="ws">${ul?'★'.repeat(w.st)+'☆'.repeat(3-w.st):'???'}</div>${!ul?`<div class="wlk">${isSecret?'🌑':'🔒'}<div style="position:absolute;bottom:4px;left:0;right:0;padding:2px 4px;font-size:9px;font-family:var(--fm);color:${isSecret?'var(--gold)':'var(--text2)'};text-align:center;line-height:1.2;background:rgba(13,10,7,.75);white-space:normal;word-break:break-word;font-style:${isSecret?'italic':'normal'}">${escapeHtml(unlockLabel)}</div></div>`:''}${badges}`;
     frag.appendChild(c);
   });
   g.appendChild(frag);
@@ -2964,97 +3654,10 @@ function calcCutQuality(start,end){
 }
 function qualBonusFromQuality(q){return 0.5+q*1.5;}
 
-let cutTimer=null;
-function startCut(){
-  if(G.cut.active)return;
-  G.cut.active=true;G.cut.progress=0;G.cut.cutStart=null;G.cut.cutEnd=null;
-  G.cut.startTime=Date.now();
-  const dur=Math.max(4000, 8000 - (G.fac.distillation&&G.fac.distillation.l||0)*300);
-  G.cut.duration=dur;
-  $('btnCutStart').style.display='none';
-  $('btnCutMark').style.display='';$('btnCutMark').style.background='var(--amber)';$('btnCutMark').style.color='#1a1208';
-  $('btnCutEnd').style.display='none';
-  $('cutResult').textContent='🔥 蒸留中... フォアショットが過ぎたらカット開始！';
-  if(cutTimer)clearInterval(cutTimer);
-  cutTimer=setInterval(()=>{
-    const elapsed=Date.now()-G.cut.startTime;
-    G.cut.progress=Math.min(1,elapsed/G.cut.duration);
-    $('cutProgress').style.width=(G.cut.progress*100)+'%';
-    if(G.cut.progress>=1){
-      clearInterval(cutTimer);
-      if(!G.cut.cutEnd) markCutEnd();
-    }
-  },50);
-}
-function markCutStart(){
-  if(!G.cut.active||G.cut.cutStart!==null)return;
-  G.cut.cutStart=G.cut.progress;
-  $('cutMarker').style.left=(G.cut.progress*100)+'%';$('cutMarker').style.display='';
-  $('btnCutMark').style.display='none';
-  $('btnCutEnd').style.display='';$('btnCutEnd').style.background='var(--amber)';$('btnCutEnd').style.color='#1a1208';
-  $('cutResult').textContent='✂️ ハートゾーンで終了！';
-}
-function markCutEnd(){
-  if(!G.cut.active)return;
-  clearInterval(cutTimer);
-  const start=G.cut.cutStart!==null?G.cut.cutStart:0;
-  const end=G.cut.progress;
-  const q=calcCutQuality(start,end);
-  G.cut.qualBonus=qualBonusFromQuality(q);
-  G.cut.active=false;
-  const pct=Math.round(q*100);
-  $('cutResult').textContent='🔬 ハート取得率 '+pct+'% → 品質ボーナス ×'+G.cut.qualBonus.toFixed(2);
-  $('btnCutStart').style.display='';
-  $('btnCutMark').style.display='none';
-  $('btnCutEnd').style.display='none';
-  $('cutProgress').style.width='0%';
-  $('cutMarker').style.display='none';
-}
-const _cutTimers={};
-function startCutBrand(brandId){
-  const cut=getBrandCut(brandId);
-  if(cut.active)return;
-  cut.active=true;cut.progress=0;cut.cutStart=null;cut.cutEnd=null;cut.startTime=Date.now();
-  const distLv=(getBrandFac(brandId).distillation||{}).l||0;
-  cut.duration=Math.max(4000,8000-distLv*300);
-  const s=$('btnCutS_'+brandId),m=$('btnCutM_'+brandId),e=$('btnCutE_'+brandId),r=$('cutRes_'+brandId),p=$('cutProg_'+brandId);
-  if(s)s.style.display='none';
-  if(m){m.style.display='';m.style.background='var(--amber)';m.style.color='#1a1208';}
-  if(e)e.style.display='none';
-  if(r)r.textContent='🔥 蒸留中... フォアショットが過ぎたらカット開始！';
-  if(_cutTimers[brandId])clearInterval(_cutTimers[brandId]);
-  _cutTimers[brandId]=setInterval(()=>{
-    const elapsed=Date.now()-cut.startTime;
-    cut.progress=Math.min(1,elapsed/cut.duration);
-    if(p)p.style.width=(cut.progress*100)+'%';
-    if(cut.progress>=1){clearInterval(_cutTimers[brandId]);if(!cut.cutEnd)markCutEndBrand(brandId);}
-  },50);
-}
-function markCutStartBrand(brandId){
-  const cut=getBrandCut(brandId);
-  if(!cut.active||cut.cutStart!==null)return;
-  cut.cutStart=cut.progress;
-  const m=$('btnCutM_'+brandId),e=$('btnCutE_'+brandId),r=$('cutRes_'+brandId);
-  if(m)m.style.display='none';
-  if(e){e.style.display='';e.style.background='var(--amber)';e.style.color='#1a1208';}
-  if(r)r.textContent='✂️ ハートゾーンで終了！';
-}
-function markCutEndBrand(brandId){
-  const cut=getBrandCut(brandId);
-  if(!cut.active)return;
-  if(_cutTimers[brandId])clearInterval(_cutTimers[brandId]);
-  const q=calcCutQuality(cut.cutStart!==null?cut.cutStart:0,cut.progress);
-  cut.qualBonus=qualBonusFromQuality(q);
-  cut.active=false;
-  const pct=Math.round(q*100);
-  const s=$('btnCutS_'+brandId),m=$('btnCutM_'+brandId),e=$('btnCutE_'+brandId),r=$('cutRes_'+brandId),p=$('cutProg_'+brandId);
-  if(r)r.textContent=`🔬 ハート取得率 ${pct}% → 品質 ×${cut.qualBonus.toFixed(2)}`;
-  if(s)s.style.display='';if(m)m.style.display='none';if(e)e.style.display='none';if(p)p.style.width='0%';
-}
-function updateCutArea(){
-  const el=$('cutArea');if(!el)return;
-  el.style.display=(G.fac&&(G.fac.distillation&&G.fac.distillation.l||0)>=5)?'':'none';
-}
+
+
+
+
 
 function tickCasks(dtMs){
   if(!G.casks||!G.casks.length)return;
@@ -3090,7 +3693,7 @@ function fillCask(whiskyId, typeId, sizeId){
     litresFilled:sz.litres,
     createdAt:Date.now(),
     agingYears:0,
-    qualityMod:G.cut&&G.cut.qualBonus||1,
+    qualityMod:getMgDistillationQual(),
     sold:false,
   });
   dmProgress('dm_cask');
@@ -3500,7 +4103,7 @@ function enterComp(id){
   G.cash-=comp.entryCost;
   dmProgress('dm_comp');
   const _compRateBonus=((G.prestige&&G.prestige.skills&&G.prestige.skills['ps_comp_rate'])||0)*0.15;
-  const qual=Math.min(1,(0.3+(G.reputation||0)/500)*((G.cut&&G.cut.qualBonus||1.0))+_compRateBonus);
+  const qual=Math.min(1,(0.3+(G.reputation||0)/500)*(getMgDistillationQual())+_compRateBonus);
   if(qual>=comp.qualThreshold){
     changeRep(comp.repReward, comp.name+' 受賞');
     if(!G.awards)G.awards=[];
@@ -3569,55 +4172,7 @@ function updateBlendSection(){
   }
 }
 
-function executeBatch(){
-  if(!G.fac||!G.fac.distillation||!G.fac.distillation.p){toast('蒸留釜を購入してください',2000);return;}
-  if(_bcs.active){toast('蒸留中です。カット選択を完了してください',2000);return;}
-  const ca=$('cutArea');
-  if(ca)ca.style.display='';
-  startBatchCut();
-}
-let _batchCutTimer=null;
-const _bcs={active:false,progress:0,startTime:null,cutStart:null,cutEnd:null,duration:6000};
-function startBatchCut(){
-  _bcs.active=true;_bcs.progress=0;_bcs.startTime=Date.now();_bcs.cutStart=null;_bcs.cutEnd=null;
-  const distLv=G.fac&&G.fac.distillation?G.fac.distillation.l:0;
-  _bcs.duration=Math.max(3000,6000-distLv*400);
-  const s=$('btnCutStart2'),m=$('btnCutMark2'),e=$('btnCutEnd2'),r=$('cutResult2'),p=$('cutProgress');
-  if(s)s.style.display='none';
-  if(m){m.style.display='';m.style.background='var(--amber)';m.style.color='#1a1208';}
-  if(e)e.style.display='none';
-  if(r)r.textContent='🔥 蒸留中... ハートゾーン（緑帯）でカット開始！';
-  if(_batchCutTimer)clearInterval(_batchCutTimer);
-  _batchCutTimer=setInterval(()=>{
-    const elapsed=Date.now()-_bcs.startTime;
-    _bcs.progress=Math.min(1,elapsed/_bcs.duration);
-    if(p)p.style.width=(_bcs.progress*100)+'%';
-    if(_bcs.progress>=1){clearInterval(_batchCutTimer);if(!_bcs.cutEnd)markBatchCutEnd();}
-  },50);
-}
-function markBatchCutStart(){
-  if(!_bcs.active||_bcs.cutStart!==null)return;
-  _bcs.cutStart=_bcs.progress;
-  const m=$('btnCutMark2'),e=$('btnCutEnd2'),r=$('cutResult2');
-  if(m)m.style.display='none';
-  if(e){e.style.display='';e.style.background='var(--amber)';e.style.color='#1a1208';}
-  if(r)r.textContent='✂️ ハートゾーンで終了！';
-}
-function markBatchCutEnd(){
-  if(!_bcs.active)return;
-  if(_batchCutTimer)clearInterval(_batchCutTimer);
-  _bcs.active=false;_bcs.cutEnd=_bcs.progress;
-  const q=calcCutQuality(_bcs.cutStart!==null?_bcs.cutStart:0,_bcs.progress);
-  const bonus=qualBonusFromQuality(q);
-  G._cutBonus=bonus;
-  G._cutBonusTaps=50;
-  const pct=Math.round(q*100);
-  const s=$('btnCutStart2'),m=$('btnCutMark2'),e=$('btnCutEnd2'),r=$('cutResult2'),p=$('cutProgress');
-  if(r)r.textContent='🔬 ハート取得率 '+pct+'% → 次50タップ ×'+bonus.toFixed(2);
-  if(s)s.style.display='';if(m)m.style.display='none';if(e)e.style.display='none';
-  if(p)p.style.width='0%';
-  setTimeout(()=>{const ca=$('cutArea');if(ca&&!_bcs.active)ca.style.display='none';},4000);
-}
+
 
 function openWhiskyModal(id){
   try{
@@ -4131,6 +4686,8 @@ async function init(){
 
       if(gap>BALANCE.TICK_GAP_DETECT_MS){
         offline();
+        chkUnlocks();
+        rall();
         return;
       }
       tickCasks(BALANCE.TICK_MS);
