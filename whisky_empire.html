@@ -578,7 +578,7 @@ const BALANCE = {
   TAP_COST_BASE: 50,
   TAP_COST_MUL: 3,
   FAC_INC_MUL: 1.2,
-  FAC_COST_MUL: 2.5,
+  FAC_COST_MUL: 2.2,
   CRAFT_COST_RATIO: 0.3,
   YEAR_EXP: 0.6,
   OFFLINE_CAP_H: 8,
@@ -594,7 +594,10 @@ const BALANCE = {
   AM_BASE_INTERVAL_MS: 30000,
   AM_AUTO_SELL_THRESHOLD: 10,
 
-  TICK_GAP_DETECT_MS: 5000
+  TICK_GAP_DETECT_MS: 5000,
+  CRAFT_CD_BASE: [0, 10000, 30000, 300000],
+  CRAFT_CD_MIN:  [0,  3000,  8000, 150000],
+  CRAFT_COST_BY_STAR: [0, 0.5, 0.72, 0.88]
 };
 
 const COMBO_WINDOW_MS=3000;
@@ -621,13 +624,13 @@ const AUTOSELL_BOT_REQ={1:2,2:5,3:8};
 const DL=[
   {name:"ホームキット",mult:1,unlock:0,region:"地元",slots:1,bonus:1.0,
    desc:"自宅キッチンに小型単式蒸留器（アランビック）と数本の樽を並べた「家内製酒場」.原料調達から熟成まで完全DIYで、地元の知人にだけ販売できる規模。"},
-  {name:"クラフト蒸留所",mult:3,unlock:4000000,region:"国内",slots:2,bonus:1.1,
+  {name:"クラフト蒸留所",mult:2.5,unlock:2500000,region:"国内",slots:2,bonus:1.1,
    desc:"独立した工場棟を持つマイクロディスティラリー.1日数百本の生産能力と、国内流通網への参入が可能に。"},
-  {name:"地方蒸留所",mult:9,unlock:51000000,region:"アジア",slots:3,bonus:1.25,
+  {name:"地方蒸留所",mult:5,unlock:25000000,region:"アジア",slots:3,bonus:1.2,
    desc:"歴史ある産地に拠点を構えるリージョナル蒸留所.複数の蒸留室と熟成庫を擁し、アジア圏への輸出と免税店ライセンスを取得。"},
-  {name:"大手蒸留所",mult:27,unlock:450000000,region:"欧米",slots:4,bonus:1.5,
+  {name:"大手蒸留所",mult:10,unlock:160000000,region:"欧米",slots:4,bonus:1.35,
    desc:"大手酒類メーカー直営の本格蒸留所.年間数百万本生産、欧米の主要バイヤーと長期契約。"},
-  {name:"コングロマリット",mult:81,unlock:3800000000,region:"全世界",slots:5,bonus:2.0,
+  {name:"コングロマリット",mult:18,unlock:1100000000,region:"全世界",slots:5,bonus:1.5,
    desc:"世界5大ウイスキー産地を擁する多国籍コングロマリット.年間数千万本、世界100か国以上に販売網。"}
 ];
 
@@ -689,7 +692,7 @@ function fi(id){
   const s=G.fac&&G.fac[id];if(!s||!s.p||s.l===0)return 0;
 
   const _psMult=1+(((G.prestige&&G.prestige.skills&&G.prestige.skills['ps_passive'])||0)*0.2);
-  return f.bi*tierBonus()*Math.pow(BALANCE.FAC_INC_MUL,s.l)*saleMult()*(G.dbgMul||1)*(G.prestige&&G.prestige.bonus||1)*_psMult*getEventMult('passive');
+  return f.bi*dm()*tierBonus()*Math.pow(BALANCE.FAC_INC_MUL,s.l)*saleMult()*(G.dbgMul||1)*(G.prestige&&G.prestige.bonus||1)*_psMult*getEventMult('passive');
 }
 function ti(){return FD.reduce((s,f)=>s+fi(f.id),0);}
 
@@ -740,11 +743,29 @@ function purFac(id){
 function craft(id){
   const w=WL.find(x=>x.id===id);
   const p=wp(id);
+  // 星別コスト比率（★=50%コスト, ★★=72%, ★★★=88%）
+  const starRatio=BALANCE.CRAFT_COST_BY_STAR[w.st||1]||BALANCE.CRAFT_COST_BY_STAR[1];
   const _craftCostMult=(1-((G.prestige&&G.prestige.skills&&G.prestige.skills['ps_craft_cost'])||0)*0.2)*getEventMult('craftCost');
-  const cc=Math.round(p*BALANCE.CRAFT_COST_RATIO*_craftCostMult);
+  const cc=Math.round(p*starRatio*_craftCostMult);
+  // クールダウン判定
+  const now=Date.now();
+  if(!G.wCd)G.wCd={};
+  if(G.wCd[id]&&now<G.wCd[id]){
+    const rem=Math.ceil((G.wCd[id]-now)/1000);
+    toast('製造クールダウン中 あと'+rem+'秒',2000);
+    return;
+  }
   if(G.cash<cc){toast('資金不足');closeM();return;}
   G.cash-=cc;G.cash+=p;
   G.te+=p;
+  // クールダウン設定（ボトリングLvで短縮: 最大50%）
+  const botLv=(G.fac&&G.fac.bottling)?G.fac.bottling.l:0;
+  const cdRed=Math.min(0.5,botLv*0.05);
+  const star=w.st||1;
+  const cdBase=BALANCE.CRAFT_CD_BASE[star]||10000;
+  const cdMin=BALANCE.CRAFT_CD_MIN[star]||3000;
+  const cdMs=Math.max(cdMin,Math.round(cdBase*(1-cdRed)));
+  G.wCd[id]=now+cdMs;
   G.cw[id]=(G.cw[id]||0)+1;
   dmProgress('dm_craft');
   if(!G.uw.includes(id))G.uw.push(id);
@@ -1373,6 +1394,7 @@ _dmProgress:{},
     randomEvent:{lastAt:0,sessionCount:0,active:null},
     story:{unlocked:[],seenNew:[]},
     auctionCooldown:0,
+    wCd:{},
   };
 }
 
@@ -2423,6 +2445,32 @@ function execPrestige(selectedSkills){
   save();rall();
   toast('🌟 プレステージLv'+nextLv+'！収益×'+bonus.toFixed(1)+' / スキルpt '+(prevSP+3-usedHere)+'pt引継',8000);
 }
+
+function refreshCraftCdDisplay(){
+  const mo=document.getElementById('mo');
+  if(!mo||mo.classList.contains('h'))return;
+  const btn=mo.querySelector('[data-act="craft"]');
+  if(!btn)return;
+  const id=btn.dataset.id;
+  if(!id)return;
+  if(!G.wCd)G.wCd={};
+  const now=Date.now(),cdEnd=G.wCd[id]||0;
+  const rem=Math.max(0,Math.ceil((cdEnd-now)/1000));
+  const w=WL.find(x=>x.id===id);
+  if(!w)return;
+  const botLv=(G.fac&&G.fac.bottling)?G.fac.bottling.l:0;
+  const cdRed=Math.min(0.5,botLv*0.05);
+  const cdFull=Math.round((BALANCE.CRAFT_CD_BASE[w.st||1]||10000)*(1-cdRed)/1000);
+  const p=wp(id);
+  const starR=BALANCE.CRAFT_COST_BY_STAR[w.st||1]||0.5;
+  const profit=p-Math.round(p*starR);
+  const canCraft=G.fac['maturation']&&G.fac['maturation'].p;
+  const onCd=rem>0;
+  btn.disabled=onCd||!canCraft;
+  btn.textContent=onCd?'⏳ クールダウン中 ('+rem+'秒 / '+cdFull+'秒)'
+    :canCraft?'🥃 製造して販売 → +'+fmt(profit)
+    :'熟成庫を購入すると製造可能';
+}
 function checkQuests(){
   if(!G.questDone)G.questDone=[];
   QUESTS.forEach(q=>{
@@ -3086,7 +3134,7 @@ function openAuction(caskId){
   toast(label+' '+mult+'x! +'+fmt(finalPrice),5000);
   rall();
 }
-const PRESTIGE_COST=35000000000;
+const PRESTIGE_COST=3000000000;
 function canPrestige(){
   if(G.dl<DL.length)return false;
   if(!FD.every(f=>{const s=G.fac&&G.fac[f.id];return s&&s.p&&s.l>=facMaxLv();}))return false;
@@ -3574,7 +3622,7 @@ function markBatchCutEnd(){
 function openWhiskyModal(id){
   try{
   const w=WL.find(x=>x.id===id),ul=G.uw.includes(id);
-  const p=wp(id),cc=Math.round(p*BALANCE.CRAFT_COST_RATIO),cnt=G.cw[id]||0;
+  const p=wp(id),_starR2=BALANCE.CRAFT_COST_BY_STAR[(WL.find(x=>x.id===id)||{st:1}).st||1]||0.5,cc=Math.round(p*_starR2),cnt=G.cw[id]||0;
   const canCraft=G.fac['maturation']&&G.fac['maturation'].p;
   let fl='';
   if(ul){
@@ -3594,9 +3642,28 @@ function openWhiskyModal(id){
     <div class="msr"><div class="msl">販売価格</div><div class="msv">${fmt(p)}/本</div></div>
     <div class="msr"><div class="msl">製造コスト</div><div class="msv">${fmt(cc)}</div></div>
     <div class="msr"><div class="msl">製造本数</div><div class="msv">${cnt.toLocaleString()}本</div></div>
-    <button class="cb" data-act="craft" data-id="${id}" ${!canCraft?'disabled':''}>
- ${canCraft?'🥃 製造して販売 → +'+fmt(p-cc):'熟成庫を購入すると製造可能'}
-    </button>
+    ${(()=>{
+ if(!G.wCd)G.wCd={};
+ const _cdNow=Date.now();
+ const _cdEnd=G.wCd[id]||0;
+ const _cdRem=Math.max(0,Math.ceil((_cdEnd-_cdNow)/1000));
+ const _onCd=_cdRem>0;
+ const _starR=BALANCE.CRAFT_COST_BY_STAR[w.st||1]||0.5;
+ const _botLv2=(G.fac&&G.fac.bottling)?G.fac.bottling.l:0;
+ const _cdRed2=Math.min(0.5,_botLv2*0.05);
+ const _cdFull=Math.round((BALANCE.CRAFT_CD_BASE[w.st||1]||10000)*(1-_cdRed2)/1000);
+ const _cc2=Math.round(p*_starR);
+ const _profit=p-_cc2;
+ const _disabled=!canCraft||_onCd;
+ return '<button class="cb" data-act="craft" data-id="'+id+'" '+(_disabled?'disabled':'')+'>'
+   +(_onCd?'⏳ クールダウン中 ('+_cdRem+'秒 / '+_cdFull+'秒)'
+   :canCraft?'🥃 製造して販売 → +'+fmt(_profit)
+   :'熟成庫を購入すると製造可能')
+   +'</button>'
+   +'<div style="font-size:10px;color:var(--muted);font-family:var(--fm);text-align:center;margin-top:4px">'
+   +(canCraft?'コスト: '+fmt(_cc2)+' ('+Math.round(_starR*100)+'%) | CD: '+_cdFull+'秒 (ボトリングLv'+_botLv2+'で短縮)':'')
+   +'</div>';
+    })()}
     ${(()=>{
  const bot=G.fac&&G.fac.bottling;
  const botOk=bot&&bot.p&&bot.l>0;
@@ -4092,6 +4159,8 @@ async function init(){
         if(at.id==='tsale'){const ts=$('tilSale');if(ts)ts.textContent='収益: '+fmt(ti())+'/h';}
         if(at.id==='tp')rprof();
       }
+      // 製造CDモーダル更新（開いている場合）
+      refreshCraftCdDisplay();
     },BALANCE.UI_REFRESH_MS);
 
 
