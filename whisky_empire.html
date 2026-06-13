@@ -571,8 +571,8 @@ const BALANCE = {
   UI_REFRESH_MS: 2000,
   MAX_LV: 10,
   SCHEMA_VERSION: 6,
-  APP_VERSION: '3.7.0',
-  APP_DATE: '2026-06-02',
+  APP_VERSION: '3.8.0',
+  APP_DATE: '2026-06-13',
   STORAGE_PREFIX: 'we_v4:',
 
   AM_BASE_INTERVAL_MS: 30000,
@@ -584,6 +584,8 @@ const BALANCE = {
   CRAFT_COST_BY_STAR: [0, 0.5, 0.72, 0.88]
 };
 
+const OFFLINE_MIN_MS=60*1000; // オフライン進行モーダルの最小発火しきい値(60秒)
+let _offlineGate=false; // オフライン復帰モーダル表示中の再入防止フラグ(方式B)
 const COMBO_WINDOW_MS=3000;
 const COMBO_MUL_MAX=10.0;
 const COMBO_MAX=1000;
@@ -669,13 +671,15 @@ function cv(){
   const cutB=G._cutBonus||1.0;
   return BALANCE.TAP_BASE*distMult()*Math.pow(BALANCE.TAP_MUL,G.cl||0)*cutB*saleMult()*(G.prestige&&G.prestige.bonus||1)*getEventMult('tap')*getMgTapMult();
 }
-function fi(id){
+function fi(id,lvOverride){
   const f=FD.find(x=>x.id===id);if(!f)return 0;
-  const s=G.fac&&G.fac[id];if(!s||!s.p||s.l===0)return 0;
+  const s=G.fac&&G.fac[id];if(!s||!s.p)return 0;
+  const lv=(lvOverride!==undefined)?lvOverride:s.l;
+  if(lv===0)return 0;
 
   const _psMult=1+(((G.prestige&&G.prestige.skills&&G.prestige.skills['ps_passive'])||0)*0.2);
   const _mgFacMult=(['maturation','bottling'].includes(id)?getMgFacMult(id):1.0);
-  return f.bi*dm()*tierBonus()*Math.pow(BALANCE.FAC_INC_MUL,s.l)*saleMult()*(G.dbgMul||1)*(G.prestige&&G.prestige.bonus||1)*_psMult*getEventMult('passive')*_mgFacMult;
+  return f.bi*dm()*tierBonus()*Math.pow(BALANCE.FAC_INC_MUL,lv)*saleMult()*(G.dbgMul||1)*(G.prestige&&G.prestige.bonus||1)*_psMult*getEventMult('passive')*_mgFacMult;
 }
 function ti(){return FD.reduce((s,f)=>s+fi(f.id),0);}
 
@@ -695,10 +699,9 @@ function fuc(id){
   const l=(G.fac&&G.fac[id])?G.fac[id].l:0;
   if(l>=facMaxLv())return Infinity;
 
-  const tierRelLv=l-(G.dl-1)*10;
   const _fcm=(G.prestige&&G.prestige.skills&&G.prestige.skills['ps_fac_cost'])?0.9:1.0;
   const _t1m=(G.prestige&&G.prestige.skills&&G.prestige.skills['ps_t1_cost']&&(G.dl||1)===1)?0.7:1.0;
-  return Math.round(f.bc*distMult()*Math.pow(BALANCE.FAC_COST_MUL,Math.max(0,tierRelLv))*_fcm*_t1m);
+  return Math.round(f.bc*distMult()*Math.pow(BALANCE.FAC_COST_MUL,l)*_fcm*_t1m);
 }
 function fpc(id){return Math.round(FD.find(x=>x.id===id).pur*distMult());}
 function isUL(id){
@@ -1800,6 +1803,14 @@ function fmt(n){
   if(n>=1e4)return'$'+(n/1e3).toFixed(1)+'K';
   return'$'+Math.floor(n).toLocaleString();
 }
+function fmtDuration(ms){
+  const totalMin=Math.floor(ms/60000);
+  const h=Math.floor(totalMin/60);
+  const m=totalMin%60;
+  if(h<=0)return m+'分';
+  if(m<=0)return h+'時間';
+  return h+'時間'+m+'分';
+}
 function wp(id){
   const w=WL.find(x=>x.id===id);
   return Math.round(w.bs*Math.pow(w.yr/3,BALANCE.YEAR_EXP)*w.ck*distMult()*saleMult()*channelMult()*repMult());
@@ -1888,7 +1899,7 @@ const TT=[
   {id:"t15", lb:"全Tier制覇者",     ch:s=>s.dl>=DL.length},
 
   {id:"t11", lb:"全施設稼働",       ch:s=>Object.values(s.fac||{}).filter(f=>f.p).length>=6},
-  {id:"t11b",lb:"施設Lv5達成",      ch:s=>Object.values(s.fac||{}).every(f=>!f.p||f.l>=5)},
+  {id:"t11b",lb:"施設Lv5達成",      ch:s=>{const fs=Object.values(s.fac||{}).filter(f=>f.p);return fs.length>0&&fs.every(f=>f.l>=5);}},
   {id:"t11c",lb:"施設Lv10達成",     ch:s=>Object.values(s.fac||{}).filter(f=>f.p).every(f=>f.l>=10)},
   {id:"t11d",lb:"施設Lv20達成",     ch:s=>s.dl>=2&&Object.values(s.fac||{}).filter(f=>f.p).every(f=>f.l>=20)},
   {id:"t11e",lb:"施設Lv30達成",     ch:s=>s.dl>=3&&Object.values(s.fac||{}).filter(f=>f.p).every(f=>f.l>=30)},
@@ -2861,6 +2872,7 @@ function getEventMult(type){
   if(type==='passive'){if(e.passiveMult)return e.passiveMult;if(e.allMult)return e.allMult;}
   if(type==='tap'){if(e.allMult)return e.allMult;}
   if(type==='craftCost'){if(e.craftCostMult)return e.craftCostMult;}
+  if(type==='angelShare'){if(e.angelShareMult)return e.angelShareMult;}
   return 1;
 }
 function tryTriggerRandomEvent(){
@@ -2882,7 +2894,7 @@ function applyEventEffect(ev,choiceIdx){
   if(effect.cash!==undefined)G.cash=Math.max(0,G.cash+effect.cash);
   if(effect.cashBonus==='2h'){G.cash+=ti()*2;toast(ev.icon+' 2時間分の収益を獲得！',4000);}
   if(effect.cashMult)G.cash*=effect.cashMult;
-  if(effect.nextCutBonus){G._cutBonus=Math.max(G._cutBonus||1.0,effect.nextCutBonus);toast(ev.icon+' 次回カットボーナス×'+effect.nextCutBonus,3000);}
+  if(effect.nextCutBonus){G._cutBonus=Math.max(G._cutBonus||1.0,effect.nextCutBonus);G._cutBonusTaps=1;toast(ev.icon+' 次回カットボーナス×'+effect.nextCutBonus,3000);}
   if(ev.dur>0){G.randomEvent.active={id:ev.id,effect,expiresAt:Date.now()+ev.dur*1000};}
   save();
 }
@@ -3131,9 +3143,13 @@ function execPrestige(selectedSkills){
   const lw=LEGACY_WHISKIES.find(w=>w.unlockRun===nextLv);
   if(lw&&!newLW.includes(lw.id)){newLW.push(lw.id);toast('🥃 引き継ぎ銘柄解禁: '+lw.name,5000);}
   const savedStory=G.story;
+  const savedUw=[...(G.uw||[])];
+  const savedCw={...(G.cw||{})};
   const s=defState();
   s.prestige={level:nextLv,bonus,skillPoints:Math.max(0,prevSP+3-usedHere),skills:newSkills,legacyWhiskies:newLW,totalRuns:prevRuns+1};
   s.story=savedStory;
+  s.uw=savedUw;
+  s.cw=savedCw;
   Object.assign(G,s);
   const mo=document.getElementById('mo');if(mo)mo.classList.add('h');
   save();rall();
@@ -3206,7 +3222,65 @@ function chkUnlocks(){
 }
 
 function offline(){
-  G.ls=Date.now();
+  if(_offlineGate)return; // 方式B: 復帰モーダル表示中は再入禁止
+
+  const now=Date.now();
+  const rawElapsed=Math.max(0, now-(G.ls||now)); // 時計巻き戻り対策
+  G.ls=now;
+
+  if(rawElapsed<OFFLINE_MIN_MS)return;
+
+  const capMs=BALANCE.OFFLINE_CAP_H*3600*1000;
+  const cappedMs=Math.min(rawElapsed,capMs);
+  const wasCapped=rawElapsed>capMs;
+
+  // 受動収益のみ一括加算(評判減衰・ランダムイベント・自動製造は対象外)
+  const earned=ti()*(cappedMs/3600000);
+  if(earned>0){
+    G.cash=(G.cash||0)+earned;
+    G.te=(G.te||0)+earned;
+  }
+
+  // 樽の熟成・天使の分け前のみ時間分進行
+  tickCasks(cappedMs);
+
+  showOfflineSummaryModal({elapsedMs:rawElapsed,cappedMs,earned,wasCapped});
+}
+function showOfflineSummaryModal(info){
+  const mo=document.getElementById('mo'),mc2=document.getElementById('mc2');
+  if(!mo||!mc2)return;
+
+  _offlineGate=true; // モーダルを閉じるまで再入禁止
+
+  let capNote='';
+  if(info.wasCapped){
+    capNote=`<div style="margin-top:6px;font-size:11px;color:var(--muted)">
+      ※ 実際の放置時間は${fmtDuration(info.elapsedMs)}でしたが、上限の${BALANCE.OFFLINE_CAP_H}時間分のみ計算しました。
+    </div>`;
+  }
+
+  mc2.innerHTML=`<div class="mt">🌙 おかえりなさい！</div>
+    <div class="ms">蒸留所は不在の間も稼働していました</div>
+    <div style="font-family:var(--fb);font-size:13px;color:var(--text2);line-height:1.9;margin-top:12px">
+      <div>放置時間: <b style="color:var(--gold2)">${fmtDuration(info.cappedMs)}</b></div>
+      <div style="margin-top:6px">獲得した売上: <b style="color:var(--green)">+${fmt(info.earned)}</b></div>
+      ${capNote}
+    </div>
+    <button type="button" onclick="closeOfflineModal()" style="margin-top:16px;width:100%;background:var(--gold);border:none;border-radius:8px;padding:10px;font-family:var(--fm);font-size:13px;color:var(--bg);font-weight:700;cursor:pointer">受け取る</button>`;
+
+  const closeBtn=document.getElementById('moClose');
+  if(closeBtn)closeBtn.onclick=closeOfflineModal;
+
+  mo.classList.remove('h');
+  rall();
+  save();
+}
+function closeOfflineModal(){
+  const mo=document.getElementById('mo');
+  if(mo)mo.classList.add('h');
+  const closeBtn=document.getElementById('moClose');
+  if(closeBtn)closeBtn.onclick=closeM;
+  _offlineGate=false;
 }
 
 function gTitle(){
@@ -3665,7 +3739,7 @@ function tickCasks(dtMs){
   G.casks.forEach(cask=>{
     if(cask.sold)return;
     const sz=CASK_SIZES.find(s=>s.id===cask.size)||CASK_SIZES[2];
-    cask.litresFilled=Math.max(0,cask.litresFilled*(1-sz.angelShare*dtYears));
+    cask.litresFilled=Math.max(0,cask.litresFilled*(1-sz.angelShare*getEventMult('angelShare')*dtYears));
     const _agingMult=1+((G.prestige&&G.prestige.skills&&G.prestige.skills['ps_aging'])||0)*0.5;
     cask.agingYears=(cask.agingYears||0)+dtYears*(sz.agingSpeed||1)*_agingMult;
   });
@@ -4295,7 +4369,7 @@ function openUpgModal(id){
   const nextLv=l+1;
   const cost=fuc(id);
   const curInc=fi(id);
-  const nextInc=f.bi*tierBonus()*Math.pow(BALANCE.FAC_INC_MUL,nextLv)*saleMult()*(G.prestige&&G.prestige.bonus||1);
+  const nextInc=fi(id,nextLv);
   const upg=(FAC_UPG[id]&&FAC_UPG[id][l%10])||FAC_UPG[id]&&FAC_UPG[id][9]||{eq:'(拡張設備)',desc:'Tier'+G.dl+'の規模に合わせた設備拡張です。'};
   const canAfford=G.cash>=cost;
   $('mc2').innerHTML=`
@@ -4340,7 +4414,10 @@ function openUpgModal(id){
   $('mo').classList.remove('h');
 }
 
-function closeM(){$('mo').classList.add('h');}
+function closeM(){
+  if(_offlineGate){closeOfflineModal();return;} // 復帰モーダルは専用クローズで_offlineGateを解除
+  $('mo').classList.add('h');
+}
 
 let confirmCb=null;
 function showConfirm({title,msg,icon='⚠️',danger=true,onYes,yesLabel}){
